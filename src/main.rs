@@ -6,6 +6,7 @@ use iced::{
     Element, Sandbox, Settings,
 };
 use crate::audio_settings::{AudioSettingsMessage, AudioSettings};
+use crate::play_buttons::{PlayButtons, ButtonMessage};
 
 fn main() -> iced::Result{
     Example::run(Settings{
@@ -15,12 +16,14 @@ fn main() -> iced::Result{
 }
 #[derive(Default)]
 pub struct Example{
-    audio: AudioSettings
+    audio: AudioSettings,
+    play_buttons: PlayButtons
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
-    AudioSettings(AudioSettingsMessage)
+    AudioSettings(AudioSettingsMessage),
+    PlayButtons(ButtonMessage)
 }
 
 impl Sandbox for Example{
@@ -39,6 +42,9 @@ impl Sandbox for Example{
            Message::AudioSettings(msg) =>{
                AudioSettings::update(&mut self.audio, msg)
             }
+            Message::PlayButtons(msg) => {
+                PlayButtons::update(&mut self.play_buttons, msg)
+            }
         }
     }
 
@@ -47,8 +53,9 @@ impl Sandbox for Example{
             .padding(20)
             .align_items(Align::Center)
             .push(
-                AudioSettings::view(&mut self.audio)
+                self.audio.view()
             )
+           .push(self.play_buttons.view())
            .into()
     }
 }
