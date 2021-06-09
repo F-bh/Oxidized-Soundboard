@@ -31,11 +31,12 @@ impl AudioSettings{
    pub fn view(&mut self) -> Element<'_, Message>{
         Column::new()
             .padding(10)
+
+            //add input controls
             .push(
                 Row::new()
                     .padding(20)
                     .align_items(Align::Start)
-                    //add output controls
                     .push(
                         slider::Slider::new(
                             &mut self.input_slider,
@@ -49,10 +50,17 @@ impl AudioSettings{
                         Text::new(self.input_slider_value.to_string())
                     )
                     .push(
-                        Button::new(&mut self.input_mute_button, Text::new("mute input"))
+                        Button::new(
+                            &mut self.input_mute_button,
+                            if self.input_muted{
+                                        Text::new("unmute input")
+                                    }else {
+                                        Text::new("mute input")
+                                    })
                             .on_press(Message::AudioSettings(AudioSettingsMessage::MutePressed(AudioType::Input)))
                     )
             )
+
             //add output controls
             .push(
                 Row::new()
@@ -71,7 +79,13 @@ impl AudioSettings{
                         Text::new(self.output_slider_value.to_string())
                     )
                     .push(
-                        Button::new(&mut self.output_mute_button, Text::new("mute output"))
+                        Button::new(
+                            &mut self.output_mute_button,
+                            if self.output_muted{
+                                Text::new("unmute output")
+                            }else {
+                                Text::new("mute output")
+                            })
                             .on_press(Message::AudioSettings(AudioSettingsMessage::MutePressed(AudioType::Output)))
                     )
             )
@@ -93,10 +107,10 @@ impl AudioSettings{
             AudioSettingsMessage::MutePressed(Type) => {
                 match Type{
                     AudioType::Input => {
-                        println!("MutePressed {}","in")
+                        self.input_muted = !self.input_muted
                     }
                     AudioType::Output => {
-                        println!("MutePressed {}","out")
+                       self.output_muted = !self.output_muted
                     }
                 }
             }
