@@ -1,10 +1,12 @@
-use iced::{Element, Column, button, Button, Text, Row};
+use iced::{Element, Column, button, Button, Text, Row, Container, Align};
 use crate::Message;
 use iced::button::State;
 use std::convert::TryFrom;
+use std::fmt::Alignment;
 
 struct PlayButton{
-    state: button::State,
+    play_state: button::State,
+    delete_state: button::State,
     //file: ...
 }
 
@@ -27,7 +29,8 @@ impl Default for PlayButtons{
 #[derive(Debug, Clone, Copy)]
 pub enum ButtonMessage{
     PlayButtonPressed(usize),
-    AddButtonPressed
+    AddButtonPressed,
+    DeleteButtonPressed(usize)
 }
 
 impl PlayButtons{
@@ -39,8 +42,12 @@ impl PlayButtons{
             }
             ButtonMessage::AddButtonPressed => {
                 self.buttons.push(PlayButton{
-                    state: Default::default()
+                    play_state: Default::default(),
+                    delete_state: Default::default()
                 })
+            }
+            ButtonMessage::DeleteButtonPressed(index) => {
+                self.buttons.remove(index);
             }
         }
     }
@@ -50,14 +57,27 @@ impl PlayButtons{
     pub fn view(&mut self) -> Element <'_, Message>{
         let mut children: Vec<Element<'_,_>> = vec![];
         let mut row_children: Vec<Element<'_,_>> = vec![];
+        let button_width = 50;
 
         //add play buttons to temp slice
         for (index, button) in self.buttons.iter_mut().enumerate() {
-             row_children.push(
-                 Button::new(&mut button.state, Text::new(index.to_string()))
-                     .min_width(50)
-                     .into()
-             );
+            row_children.push(
+                //add play + remove buttons
+                Column::new()
+                    .push(
+                        Row::new()
+                            .push(
+                                Button::new(&mut button.play_state, Text::new(index.to_string()))
+                                    .min_width(button_width)
+                            )
+                            .push(
+                                Button::new(&mut button.delete_state, Text::new("X"))
+                                    .on_press(Message::PlayButtons(ButtonMessage::DeleteButtonPressed(index)))
+                            )
+                    )
+                    //TODO: add edit button
+                    .into()
+            );
         }
 
         //add "add" button
@@ -92,11 +112,10 @@ impl PlayButtons{
 
             children.push(Row::with_children(kek)
                 .spacing(10)
-                .padding(10)
+                .padding(5)
                 .into());
 
         }
         Column::with_children(children).into()
     }
-
 }
