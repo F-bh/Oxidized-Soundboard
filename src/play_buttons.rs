@@ -1,10 +1,7 @@
 use iced::{Element, Column, button, Button, Text, Row};
 use crate::Message;
-use std::borrow::BorrowMut;
-use std::ops::{DerefMut, Deref};
-use iced::image::viewer::Renderer;
-use std::cell::RefCell;
 use iced::button::State;
+use std::convert::TryFrom;
 
 struct PlayButton{
     state: button::State,
@@ -54,13 +51,23 @@ impl PlayButtons{
         let mut children: Vec<Element<'_,_>> = vec![];
         let mut row_children: Vec<Element<'_,_>> = vec![];
 
-
-       for (index, button) in self.buttons.iter_mut().enumerate() {
-            row_children.push(
-                Button::new(&mut button.state, Text::new(index.to_string())).into()
-            );
+        //add play buttons to temp slice
+        for (index, button) in self.buttons.iter_mut().enumerate() {
+             row_children.push(
+                 Button::new(&mut button.state, Text::new(index.to_string()))
+                     .min_width(50)
+                     .into()
+             );
         }
 
+        //add "add" button
+        row_children.push(
+            Button::new(&mut self.add_button, Text::new("add"))
+                .on_press(Message::PlayButtons(ButtonMessage::AddButtonPressed))
+                .into()
+        );
+
+        //calculate amount of rows to draw
         let row_amount = if row_children.len() < self.button_row_len && row_children.len() > 0{
             1
         }
@@ -71,6 +78,7 @@ impl PlayButtons{
 
         row_children.reverse();
 
+        //move buttons to row's
         for i in 0..row_amount+1 {
             let mut added_buttons = 0;
             let mut kek: Vec<Element<'_,_>> = vec![];
@@ -82,17 +90,13 @@ impl PlayButtons{
                 added_buttons += 1;
             }
 
-            children.push(Row::with_children(kek).into());
+            children.push(Row::with_children(kek)
+                .spacing(10)
+                .padding(10)
+                .into());
+
         }
-
-
-        children.push(Button::new(&mut self.add_button, Text::new("add"))
-            .on_press(Message::PlayButtons(ButtonMessage::AddButtonPressed))
-            .into()
-        );
-
         Column::with_children(children).into()
     }
-
 
 }
