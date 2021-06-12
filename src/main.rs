@@ -1,5 +1,6 @@
 mod audio_settings;
 mod play_buttons;
+mod sound_player;
 
 use iced::{
     Align, Column,
