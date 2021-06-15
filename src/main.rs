@@ -21,7 +21,7 @@ pub struct Example{
     play_buttons: PlayButtons
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Message {
     AudioSettings(AudioSettingsMessage),
     PlayButtons(ButtonMessage)

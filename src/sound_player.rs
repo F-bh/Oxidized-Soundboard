@@ -26,7 +26,6 @@ pub enum PlayState{
 impl Sound{
 
     pub fn new(p: String) -> Self{
-       let out_stream = OutputStream::try_default().unwrap();
         Self{
             file_path: p,
             state: PlayState::Stopped

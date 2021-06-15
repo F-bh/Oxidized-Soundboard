@@ -1,9 +1,9 @@
-use iced::{Element, Column, button, Button, Text, Row, Container, Align};
+use iced::{Element, Column, button, Button, Text, Row, Container, Align, TextInput, text_input};
 use crate::Message;
 use crate::sound_player;
 use iced::button::State;
 use std::convert::TryFrom;
-use std::fmt::Alignment;
+use std::fmt::{Alignment, Debug};
 use std::fs::{File};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Sender, Receiver, TryRecvError};
@@ -20,7 +20,13 @@ struct PlayButton{
 pub struct PlayButtons{
     buttons: Vec<PlayButton>,
     add_button: button::State,
+    add_confirm_button: button::State,
+    is_being_added : bool,
+    path_input: text_input::State,
     button_row_len: usize,
+    temp_path: String,
+    allow_confirm: bool,
+
 }
 
 impl Default for PlayButtons{
@@ -28,17 +34,26 @@ impl Default for PlayButtons{
         Self{
             buttons: vec![],
             add_button: Default::default(),
-            button_row_len: 12
+            add_confirm_button: Default::default(),
+            button_row_len: 12,
+            is_being_added: false,
+            path_input: Default::default(),
+            temp_path: "".to_string(),
+            allow_confirm: false
         }
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ButtonMessage{
     PlayButtonPressed(usize),
     AddButtonPressed,
-    DeleteButtonPressed(usize)
+    DeleteButtonPressed(usize),
+    AddConfirmButtonPressed,
+    PathOk(String),
+    PathNotOk(String),
 }
+
 
 impl PlayButtons{
 
@@ -70,6 +85,7 @@ impl PlayButtons{
                         btn.player_handle_sender.as_ref().unwrap().send(PlayerMessage::Stop); //unwrap because the handle must exist if the sound is playing
                     }
                     PlayState::Stopped => {
+                        println!("playing now: {}", btn.sound.file_path);
                         let (tx, rx) = btn.sound.play();
                         btn.player_handle_sender = Option::Some(tx);
                         btn.player_handle_receiver = Option::Some(rx);
@@ -79,26 +95,78 @@ impl PlayButtons{
             }
 
             ButtonMessage::AddButtonPressed => {
-                self.buttons.push(PlayButton{
-                    play_state: Default::default(),
-                    delete_state: Default::default(),
-                    sound: sound_player::Sound::new(String::from("/home/fbh/Downloads/KEKW.mp3")),
-                    player_handle_sender: None,
-                    player_handle_receiver: None
-                })
+                self.is_being_added = true;
             }
+
+            ButtonMessage::AddConfirmButtonPressed => {
+                self.buttons.push(PlayButton{
+                                    play_state: Default::default(),
+                                    delete_state: Default::default(),
+                                    sound: sound_player::Sound::new(self.temp_path.clone()),
+                                    player_handle_sender: None,
+                                    player_handle_receiver: None
+                                });
+                self.temp_path = "".to_string();
+                self.is_being_added = false;
+            }
+
             ButtonMessage::DeleteButtonPressed(index) => {
                 if let Some(handle) = &self.buttons[index].player_handle_sender{
                     handle.send(PlayerMessage::Stop);
                 }
                 self.buttons.remove(index);
             }
+
+            ButtonMessage::PathOk(val) => {
+                self.temp_path = val;
+                self.allow_confirm = true;
+            }
+
+            ButtonMessage::PathNotOk(val) => {
+                self.temp_path = val;
+                self.allow_confirm = false
+
+            }
         }
     }
 
-
-
     pub fn view(&mut self) -> Element <'_, Message>{
+        if self.is_being_added{
+            //TODO add winapi filepicker for Windows users
+            let add_button = if self.allow_confirm{
+                Button::new(&mut self.add_confirm_button, Text::new("confirm"))
+                    .on_press(Message::PlayButtons(ButtonMessage::AddConfirmButtonPressed))
+            }
+            else {
+                Button::new(&mut self.add_confirm_button, Text::new("confirm"))
+            };
+
+            Column::new()
+                .push(TextInput::new(
+                    &mut self.path_input,
+                    "enter the filepath here",
+                    &self.temp_path,
+                    (
+                        |val|
+                            if Path::exists(Path::new(val.as_str())){
+                                 Message::PlayButtons(ButtonMessage::PathOk(val))
+                            }
+                            else {
+                                Message::PlayButtons(ButtonMessage::PathNotOk(val))
+                            }
+                        ))
+                )
+                .push(
+                    add_button
+                )
+                .into()
+        }
+        else{
+            self.view_button_list()
+        }
+    }
+
+    fn view_button_list(&mut self) -> Element <'_, Message>{
         let mut children: Vec<Element<'_,_>> = vec![];
         let mut row_children: Vec<Element<'_,_>> = vec![];
         let button_width = 50;
@@ -163,4 +231,6 @@ impl PlayButtons{
         }
         Column::with_children(children).into()
     }
+
+
 }
