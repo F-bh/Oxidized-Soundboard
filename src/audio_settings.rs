@@ -1,37 +1,58 @@
-use iced::{slider, button, Column, Element, Align, Row, Text, Button};
+use crate::sound_player::PlayerMessage;
 use crate::{Message};
+use iced::{button, slider, Align, Button, Column, Element, Row, Text};
 use std::ops::RangeInclusive;
 
-#[derive(Default)]
-pub struct AudioSettings{
-    output_slider_value: i32,
-    output_slider: slider::State,
-    output_mute_button: button::State,
-    output_muted: bool,
-    input_slider_value: i32,
-    input_slider: slider::State,
-    input_mute_button: button::State,
-    input_muted: bool,
-}
+use std::sync::mpsc::Sender;
+use std::sync::{Arc, Mutex};
 
-#[derive(Debug, Clone, Copy)]
-pub enum AudioType{
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum AudioType {
     Input,
-    Output
+    Output,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum AudioSettingsMessage{
+pub enum AudioSettingsMessage {
     SliderChange(i32, AudioType),
     MutePressed(AudioType),
 }
 
-impl AudioSettings{
+#[derive(Clone)]
+pub struct AudioSettings {
+    pub output_slider_value: i32,
+    pub output_muted: bool,
+    pub input_slider_value: i32,
+    pub input_muted: bool,
+}
 
-   pub fn view(&mut self) -> Element<'_, Message>{
+impl Default for AudioSettings {
+    fn default() -> Self {
+        //TODO save and load Settings
+        Self {
+            output_slider_value: 0,
+            output_muted: false,
+            input_slider_value: 0,
+            input_muted: false,
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct AudioSettingsModel {
+    pub settings: Arc<Mutex<AudioSettings>>,
+    // pub player_handle_sender: Option<Sender<sound_player::PlayerMessage>>
+    output_slider: slider::State,
+    output_mute_button: button::State,
+    input_slider: slider::State,
+    input_mute_button: button::State,
+}
+
+impl AudioSettingsModel {
+    pub fn view(&mut self) -> Element<'_, Message> {
+        let settings = self.settings.lock().unwrap();
         Column::new()
             .padding(10)
-
             //add input controls
             .push(
                 Row::new()
@@ -41,26 +62,26 @@ impl AudioSettings{
                         slider::Slider::new(
                             &mut self.input_slider,
                             RangeInclusive::new(0, 100),
-                            self.input_slider_value,
-                            Self::slider_change(AudioType::Input)
+                            settings.input_slider_value,
+                            Self::slider_change(AudioType::Input),
                         )
-                            .step(1)
+                        .step(1),
                     )
-                    .push(
-                        Text::new(self.input_slider_value.to_string())
-                    )
+                    .push(Text::new(settings.input_slider_value.to_string()))
                     .push(
                         Button::new(
                             &mut self.input_mute_button,
-                            if self.input_muted{
-                                        Text::new("unmute input")
-                                    }else {
-                                        Text::new("mute input")
-                                    })
-                            .on_press(Message::AudioSettings(AudioSettingsMessage::MutePressed(AudioType::Input)))
-                    )
+                            if settings.input_muted {
+                                Text::new("unmute input")
+                            } else {
+                                Text::new("mute input")
+                            },
+                        )
+                        .on_press(Message::AudioSettings(
+                            AudioSettingsMessage::MutePressed(AudioType::Input),
+                        )),
+                    ),
             )
-
             //add output controls
             .push(
                 Row::new()
@@ -70,63 +91,62 @@ impl AudioSettings{
                         slider::Slider::new(
                             &mut self.output_slider,
                             RangeInclusive::new(0, 100),
-                            self.output_slider_value,
-                            Self::slider_change(AudioType::Output)
+                            settings.output_slider_value,
+                            Self::slider_change(AudioType::Output),
                         )
-                            .step(1)
+                        .step(1),
                     )
-                    .push(
-                        Text::new(self.output_slider_value.to_string())
-                    )
+                    .push(Text::new(settings.output_slider_value.to_string()))
                     .push(
                         Button::new(
                             &mut self.output_mute_button,
-                            if self.output_muted{
+                            if settings.output_muted {
                                 Text::new("unmute output")
-                            }else {
+                            } else {
                                 Text::new("mute output")
-                            })
-                            .on_press(Message::AudioSettings(AudioSettingsMessage::MutePressed(AudioType::Output)))
-                    )
+                            },
+                        )
+                        .on_press(Message::AudioSettings(
+                            AudioSettingsMessage::MutePressed(AudioType::Output),
+                        )),
+                    ),
             )
             .into()
     }
 
-    pub fn update (&mut self, msg: AudioSettingsMessage){
-        match msg{
-            AudioSettingsMessage::SliderChange(val, Type) => {
-                match Type {
-                    AudioType::Input => {
-                         self.input_slider_value = val
-                    }
-                    AudioType::Output => {
-                        self.output_slider_value = val
-                    }
-                }
-            }
-            AudioSettingsMessage::MutePressed(Type) => {
-                match Type{
-                    AudioType::Input => {
-                        self.input_muted = !self.input_muted
-                    }
-                    AudioType::Output => {
-                       self.output_muted = !self.output_muted
-                    }
-                }
-            }
+    pub fn update(
+        &mut self,
+        msg: AudioSettingsMessage,
+        player_update_channels: Vec<Sender<PlayerMessage>>,
+    ) {
+        let mut settings = self.settings.lock().unwrap();
+
+        //change settings
+        match msg {
+            AudioSettingsMessage::SliderChange(val, Type) => match Type {
+                AudioType::Input => settings.input_slider_value = val,
+                AudioType::Output => settings.output_slider_value = val,
+            },
+            AudioSettingsMessage::MutePressed(Type) => match Type {
+                AudioType::Input => settings.input_muted = !settings.input_muted,
+                AudioType::Output => settings.output_muted = !settings.output_muted,
+            },
+        }
+        //send settings changed message to players
+        for chan in player_update_channels.iter() {
+            chan.send(PlayerMessage::SettingsChange);
         }
     }
 
     //function builder that returns an onChanged function depending on the audio_type
     fn slider_change(audio_type: AudioType) -> fn(i32) -> Message {
         return match audio_type {
-            AudioType::Input =>
-                |val: i32| Message::AudioSettings(AudioSettingsMessage::SliderChange(val, AudioType::Input)),
-            AudioType::Output =>
-                |val: i32| Message::AudioSettings(AudioSettingsMessage::SliderChange(val, AudioType::Output))
-        }
-
+            AudioType::Input => |val: i32| {
+                Message::AudioSettings(AudioSettingsMessage::SliderChange(val, AudioType::Input))
+            },
+            AudioType::Output => |val: i32| {
+                Message::AudioSettings(AudioSettingsMessage::SliderChange(val, AudioType::Output))
+            },
+        };
     }
-
 }
-

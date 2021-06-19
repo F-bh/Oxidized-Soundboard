@@ -1,51 +1,27 @@
-use iced::{Element, Column, button, Button, Text, Row, Container, Align, TextInput, text_input};
-use crate::Message;
+use crate::audio_settings::{AudioSettings};
 use crate::sound_player;
-use iced::button::State;
-use std::convert::TryFrom;
-use std::fmt::{Alignment, Debug};
-use std::fs::{File};
-use std::path::{Path, PathBuf};
-use std::sync::mpsc::{Sender, Receiver, TryRecvError};
-use crate::sound_player::{PlayerMessage, PlayState};
+use crate::sound_player::{PlayState, PlayerMessage};
+use crate::Message;
 
-struct PlayButton{
+use iced::{button, text_input, Button, Column, Element, Row, Text, TextInput};
+
+use std::fmt::{Debug};
+
+use std::path::{Path};
+
+use std::sync::mpsc::{Receiver, Sender};
+use std::sync::{Arc, Mutex};
+
+pub struct PlayButton {
     play_state: button::State,
     delete_state: button::State,
     sound: sound_player::Sound,
-    player_handle_sender: Option<Sender<sound_player::PlayerMessage>>,
+    pub player_handle_sender: Option<Sender<sound_player::PlayerMessage>>,
     player_handle_receiver: Option<Receiver<sound_player::PlayState>>,
 }
 
-pub struct PlayButtons{
-    buttons: Vec<PlayButton>,
-    add_button: button::State,
-    add_confirm_button: button::State,
-    is_being_added : bool,
-    path_input: text_input::State,
-    button_row_len: usize,
-    temp_path: String,
-    allow_confirm: bool,
-
-}
-
-impl Default for PlayButtons{
-    fn default() -> Self {
-        Self{
-            buttons: vec![],
-            add_button: Default::default(),
-            add_confirm_button: Default::default(),
-            button_row_len: 12,
-            is_being_added: false,
-            path_input: Default::default(),
-            temp_path: "".to_string(),
-            allow_confirm: false
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
-pub enum ButtonMessage{
+pub enum ButtonMessage {
     PlayButtonPressed(usize),
     AddButtonPressed,
     DeleteButtonPressed(usize),
@@ -54,44 +30,64 @@ pub enum ButtonMessage{
     PathNotOk(String),
 }
 
+pub struct PlayButtons {
+    pub buttons: Vec<PlayButton>,
+    pub settings: Option<Arc<Mutex<AudioSettings>>>,
+    add_button: button::State,
+    add_confirm_button: button::State,
+    is_being_added: bool,
+    path_input: text_input::State,
+    button_row_len: usize,
+    temp_path: String,
+    allow_confirm: bool,
+}
 
-impl PlayButtons{
+impl Default for PlayButtons {
+    fn default() -> Self {
+        Self {
+            buttons: vec![],
+            settings: Default::default(),
+            add_button: Default::default(),
+            add_confirm_button: Default::default(),
+            button_row_len: 12,
+            is_being_added: false,
+            path_input: Default::default(),
+            temp_path: "".to_string(),
+            allow_confirm: false,
+        }
+    }
+}
 
-    pub fn update(&mut self, msg: ButtonMessage){
+impl PlayButtons {
+    pub fn update(&mut self, msg: ButtonMessage) {
         match msg {
             ButtonMessage::PlayButtonPressed(index) => {
                 let btn = &mut self.buttons[index];
 
                 //check for messages from players
-                if let Some(tx) = &btn.player_handle_receiver{
+                if let Some(tx) = &btn.player_handle_receiver {
                     let res = tx.try_recv();
-                    match res{
-                        Ok(msg) => {
-                            match msg{
-                                PlayState::Stopped => {
-                                    btn.sound.state = PlayState::Stopped
-                                }
-                                PlayState::Playing =>{
-                                    btn.sound.state = PlayState::Playing
-                                }
-                            }
-                        }
-                        Err(_) => {/*TODO add error handling*/}
+                    match res {
+                        Ok(msg) => match msg {
+                            PlayState::Stopped => btn.sound.state = PlayState::Stopped,
+                            PlayState::Playing => btn.sound.state = PlayState::Playing,
+                        },
+                        Err(_) => { /*TODO add error handling*/ }
                     }
                 }
-
-                match btn.sound.state{
+                match btn.sound.state {
                     PlayState::Playing => {
-                        btn.player_handle_sender.as_ref().unwrap().send(PlayerMessage::Stop); //unwrap because the handle must exist if the sound is playing
+                        btn.player_handle_sender
+                            .as_ref()
+                            .unwrap()
+                            .send(PlayerMessage::Stop); //unwrap because the handle must exist if the sound is playing
                     }
                     PlayState::Stopped => {
-                        println!("playing now: {}", btn.sound.file_path);
-                        let (tx, rx) = btn.sound.play();
+                        let (tx, rx) = btn.sound.play(self.settings.as_ref().unwrap().clone());
                         btn.player_handle_sender = Option::Some(tx);
                         btn.player_handle_receiver = Option::Some(rx);
                     }
                 }
-
             }
 
             ButtonMessage::AddButtonPressed => {
@@ -99,19 +95,19 @@ impl PlayButtons{
             }
 
             ButtonMessage::AddConfirmButtonPressed => {
-                self.buttons.push(PlayButton{
-                                    play_state: Default::default(),
-                                    delete_state: Default::default(),
-                                    sound: sound_player::Sound::new(self.temp_path.clone()),
-                                    player_handle_sender: None,
-                                    player_handle_receiver: None
-                                });
+                self.buttons.push(PlayButton {
+                    play_state: Default::default(),
+                    delete_state: Default::default(),
+                    sound: sound_player::Sound::new(self.temp_path.clone()),
+                    player_handle_sender: None,
+                    player_handle_receiver: None,
+                });
                 self.temp_path = "".to_string();
                 self.is_being_added = false;
             }
 
             ButtonMessage::DeleteButtonPressed(index) => {
-                if let Some(handle) = &self.buttons[index].player_handle_sender{
+                if let Some(handle) = &self.buttons[index].player_handle_sender {
                     handle.send(PlayerMessage::Stop);
                 }
                 self.buttons.remove(index);
@@ -125,19 +121,17 @@ impl PlayButtons{
             ButtonMessage::PathNotOk(val) => {
                 self.temp_path = val;
                 self.allow_confirm = false
-
             }
         }
     }
 
-    pub fn view(&mut self) -> Element <'_, Message>{
-        if self.is_being_added{
+    pub fn view(&mut self) -> Element<'_, Message> {
+        if self.is_being_added {
             //TODO add winapi filepicker for Windows users
-            let add_button = if self.allow_confirm{
+            let add_button = if self.allow_confirm {
                 Button::new(&mut self.add_confirm_button, Text::new("confirm"))
                     .on_press(Message::PlayButtons(ButtonMessage::AddConfirmButtonPressed))
-            }
-            else {
+            } else {
                 Button::new(&mut self.add_confirm_button, Text::new("confirm"))
             };
 
@@ -146,29 +140,24 @@ impl PlayButtons{
                     &mut self.path_input,
                     "enter the filepath here",
                     &self.temp_path,
-                    (
-                        |val|
-                            if Path::exists(Path::new(val.as_str())){
-                                 Message::PlayButtons(ButtonMessage::PathOk(val))
-                            }
-                            else {
-                                Message::PlayButtons(ButtonMessage::PathNotOk(val))
-                            }
-                        ))
-                )
-                .push(
-                    add_button
-                )
+                    |val| {
+                        if Path::exists(Path::new(val.as_str())) {
+                            Message::PlayButtons(ButtonMessage::PathOk(val))
+                        } else {
+                            Message::PlayButtons(ButtonMessage::PathNotOk(val))
+                        }
+                    },
+                ))
+                .push(add_button)
                 .into()
-        }
-        else{
+        } else {
             self.view_button_list()
         }
     }
 
-    fn view_button_list(&mut self) -> Element <'_, Message>{
-        let mut children: Vec<Element<'_,_>> = vec![];
-        let mut row_children: Vec<Element<'_,_>> = vec![];
+    fn view_button_list(&mut self) -> Element<'_, Message> {
+        let mut children: Vec<Element<'_, _>> = vec![];
+        let mut row_children: Vec<Element<'_, _>> = vec![];
         let button_width = 50;
 
         //add play buttons to temp slice
@@ -181,15 +170,18 @@ impl PlayButtons{
                             .push(
                                 Button::new(&mut button.play_state, Text::new(index.to_string()))
                                     .min_width(button_width)
-                                    .on_press(Message::PlayButtons(ButtonMessage::PlayButtonPressed(index)))
+                                    .on_press(Message::PlayButtons(
+                                        ButtonMessage::PlayButtonPressed(index),
+                                    )),
                             )
                             .push(
-                                Button::new(&mut button.delete_state, Text::new("X"))
-                                    .on_press(Message::PlayButtons(ButtonMessage::DeleteButtonPressed(index)))
-                            )
+                                Button::new(&mut button.delete_state, Text::new("X")).on_press(
+                                    Message::PlayButtons(ButtonMessage::DeleteButtonPressed(index)),
+                                ),
+                            ),
                     )
                     //TODO: add edit button
-                    .into()
+                    .into(),
             );
         }
 
@@ -197,40 +189,31 @@ impl PlayButtons{
         row_children.push(
             Button::new(&mut self.add_button, Text::new("add"))
                 .on_press(Message::PlayButtons(ButtonMessage::AddButtonPressed))
-                .into()
+                .into(),
         );
 
         //calculate amount of rows to draw
-        let row_amount = if row_children.len() < self.button_row_len && row_children.len() > 0{
+        let row_amount = if row_children.len() < self.button_row_len && row_children.len() > 0 {
             1
-        }
-        else{
-            row_children.len()/self.button_row_len
+        } else {
+            row_children.len() / self.button_row_len
         };
-
 
         row_children.reverse();
 
         //move buttons to row's
-        for i in 0..row_amount+1 {
+        for _i in 0..row_amount + 1 {
             let mut added_buttons = 0;
-            let mut kek: Vec<Element<'_,_>> = vec![];
-            while added_buttons < self.button_row_len  && 0 < row_children.len() {
-
-                if let Some(x) = row_children.pop(){
+            let mut kek: Vec<Element<'_, _>> = vec![];
+            while added_buttons < self.button_row_len && 0 < row_children.len() {
+                if let Some(x) = row_children.pop() {
                     kek.push(x);
                 }
                 added_buttons += 1;
             }
 
-            children.push(Row::with_children(kek)
-                .spacing(10)
-                .padding(5)
-                .into());
-
+            children.push(Row::with_children(kek).spacing(10).padding(5).into());
         }
         Column::with_children(children).into()
     }
-
-
 }
