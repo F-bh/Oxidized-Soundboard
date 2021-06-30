@@ -2,15 +2,13 @@ use crate::audio_settings::{AudioSettings};
 use crate::sound_player;
 use crate::sound_player::{PlayState, PlayerMessage};
 use crate::Message;
-
-use iced::{button, text_input, Button, Column, Element, Row, Text, TextInput};
-
-use std::fmt::{Debug};
-
+use iced::{button, text_input, Button, Column, Element, Row, Text, TextInput, HorizontalAlignment, VerticalAlignment};
+use std::fmt::{Debug, Alignment};
 use std::path::{Path};
 
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
+use iced::button::Style;
 
 pub struct PlayButton {
     play_state: button::State,
@@ -18,6 +16,7 @@ pub struct PlayButton {
     sound: sound_player::Sound,
     pub player_handle_sender: Option<Sender<sound_player::PlayerMessage>>,
     player_handle_receiver: Option<Receiver<sound_player::PlayState>>,
+    name: String,
 }
 
 #[derive(Debug, Clone)]
@@ -28,6 +27,7 @@ pub enum ButtonMessage {
     AddConfirmButtonPressed,
     PathOk(String),
     PathNotOk(String),
+    NameChange(String),
 }
 
 pub struct PlayButtons {
@@ -37,8 +37,10 @@ pub struct PlayButtons {
     add_confirm_button: button::State,
     is_being_added: bool,
     path_input: text_input::State,
+    name_input: text_input::State,
     button_row_len: usize,
     temp_path: String,
+    temp_name: String,
     allow_confirm: bool,
 }
 
@@ -49,11 +51,13 @@ impl Default for PlayButtons {
             settings: Default::default(),
             add_button: Default::default(),
             add_confirm_button: Default::default(),
-            button_row_len: 12,
+            button_row_len: 6,
             is_being_added: false,
             path_input: Default::default(),
             temp_path: "".to_string(),
+            temp_name: "".to_string(),
             allow_confirm: false,
+            name_input: Default::default()
         }
     }
 }
@@ -75,6 +79,7 @@ impl PlayButtons {
                         Err(_) => { /*TODO add error handling*/ }
                     }
                 }
+
                 match btn.sound.state {
                     PlayState::Playing => {
                         btn.player_handle_sender
@@ -101,6 +106,7 @@ impl PlayButtons {
                     sound: sound_player::Sound::new(self.temp_path.clone()),
                     player_handle_sender: None,
                     player_handle_receiver: None,
+                    name: self.temp_name.to_owned(),
                 });
                 self.temp_path = "".to_string();
                 self.is_being_added = false;
@@ -120,8 +126,13 @@ impl PlayButtons {
 
             ButtonMessage::PathNotOk(val) => {
                 self.temp_path = val;
-                self.allow_confirm = false
+                self.allow_confirm = false;
             }
+
+            ButtonMessage::NameChange(name) =>{
+                self.temp_name = name;
+            }
+
         }
     }
 
@@ -142,11 +153,18 @@ impl PlayButtons {
                     &self.temp_path,
                     |val| {
                         if Path::exists(Path::new(val.as_str())) {
+                            //TODO: add FileType check
                             Message::PlayButtons(ButtonMessage::PathOk(val))
                         } else {
                             Message::PlayButtons(ButtonMessage::PathNotOk(val))
                         }
                     },
+                ))
+                .push(TextInput::new(
+                    &mut self.name_input,
+                    "enter button name here",
+                    &self.temp_name,
+                    |val| Message::PlayButtons(ButtonMessage::NameChange(val))
                 ))
                 .push(add_button)
                 .into()
@@ -158,7 +176,8 @@ impl PlayButtons {
     fn view_button_list(&mut self) -> Element<'_, Message> {
         let mut children: Vec<Element<'_, _>> = vec![];
         let mut row_children: Vec<Element<'_, _>> = vec![];
-        let button_width = 50;
+        let button_width = 100;
+        let button_height = 100;
 
         //add play buttons to temp slice
         for (index, button) in self.buttons.iter_mut().enumerate() {
@@ -168,27 +187,48 @@ impl PlayButtons {
                     .push(
                         Row::new()
                             .push(
-                                Button::new(&mut button.play_state, Text::new(index.to_string()))
-                                    .min_width(button_width)
+                                Button::new(
+                                    &mut button.play_state,
+                                    Text::new(&button.name)
+                                        .horizontal_alignment(HorizontalAlignment::Center)
+                                        .vertical_alignment(VerticalAlignment::Center)
+                                    )
+                                    .width(button_width.into())
+                                    .height(button_height.into())
                                     .on_press(Message::PlayButtons(
                                         ButtonMessage::PlayButtonPressed(index),
                                     )),
                             )
                             .push(
-                                Button::new(&mut button.delete_state, Text::new("X")).on_press(
+                                Button::new(
+                                    &mut button.delete_state,
+                                    Text::new("X")
+                                        .horizontal_alignment(HorizontalAlignment::Center)
+                                        .vertical_alignment(VerticalAlignment::Center)
+                                        .size((button_height / 4) as u16)
+                                )
+                                    .min_height(button_height as u32)
+                                    .min_width((button_width / 8) as u32)
+                                    .on_press(
                                     Message::PlayButtons(ButtonMessage::DeleteButtonPressed(index)),
                                 ),
                             ),
                     )
-                    //TODO: add edit button
                     .into(),
             );
         }
 
         //add "add" button
         row_children.push(
-            Button::new(&mut self.add_button, Text::new("add"))
+            Button::new(
+                &mut self.add_button,
+                Text::new("add")
+                    .horizontal_alignment(HorizontalAlignment::Center)
+                    .vertical_alignment(VerticalAlignment::Center)
+                )
                 .on_press(Message::PlayButtons(ButtonMessage::AddButtonPressed))
+                .width(button_width.into())
+                .height(button_height.into())
                 .into(),
         );
 
@@ -204,15 +244,20 @@ impl PlayButtons {
         //move buttons to row's
         for _i in 0..row_amount + 1 {
             let mut added_buttons = 0;
-            let mut kek: Vec<Element<'_, _>> = vec![];
+            let mut temp_buttons: Vec<Element<'_, _>> = vec![];
             while added_buttons < self.button_row_len && 0 < row_children.len() {
                 if let Some(x) = row_children.pop() {
-                    kek.push(x);
+                    temp_buttons.push(x);
                 }
                 added_buttons += 1;
             }
 
-            children.push(Row::with_children(kek).spacing(10).padding(5).into());
+            children.push(
+                Row::with_children(temp_buttons)
+                    .spacing(10)
+                    .padding(5)
+                    .into()
+            );
         }
         Column::with_children(children).into()
     }
