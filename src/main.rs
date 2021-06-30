@@ -6,7 +6,6 @@ use crate::audio_settings::{AudioSettings, AudioSettingsMessage, AudioSettingsMo
 use crate::play_buttons::{ButtonMessage, PlayButtons};
 use crate::sound_player::PlayerMessage;
 use iced::{Align, Column, Element, Sandbox, Settings};
-
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 

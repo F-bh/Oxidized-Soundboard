@@ -2,7 +2,6 @@ use crate::sound_player::PlayerMessage;
 use crate::{Message};
 use iced::{button, slider, Align, Button, Column, Element, Row, Text};
 use std::ops::RangeInclusive;
-
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 
