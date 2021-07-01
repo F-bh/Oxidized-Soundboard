@@ -1,6 +1,6 @@
 use crate::sound_player::PlayerMessage;
-use crate::{Message};
-use iced::{button, slider, Align, Button, Column, Element, Row, Text};
+use crate::{Message, WindowSettings};
+use iced::{button, slider, Align, Button, Column, Element, Row, Text, Length, HorizontalAlignment};
 use std::ops::RangeInclusive;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
@@ -39,7 +39,8 @@ impl Default for AudioSettings {
 
 #[derive(Default)]
 pub struct AudioSettingsModel {
-    pub settings: Arc<Mutex<AudioSettings>>,
+    pub audio_settings: Arc<Mutex<AudioSettings>>,
+    pub video_settings: Arc<Mutex<WindowSettings>>,
     // pub player_handle_sender: Option<Sender<sound_player::PlayerMessage>>
     output_slider: slider::State,
     output_mute_button: button::State,
@@ -49,13 +50,18 @@ pub struct AudioSettingsModel {
 
 impl AudioSettingsModel {
     pub fn view(&mut self) -> Element<'_, Message> {
-        let settings = self.settings.lock().unwrap();
+        let settings = self.video_settings.lock().unwrap();
+        let (width, height) = (settings.width, settings.height);
+        let mute_width = (settings.width / 100) * 25;
+        let slider_width = (width / 100) * 70;
+        let padding = 5;
+        let settings = self.audio_settings.lock().unwrap();
         Column::new()
-            .padding(10)
+            .padding(padding as u16)
             //add input controls
             .push(
                 Row::new()
-                    .padding(20)
+                    .padding(padding as u16)
                     .align_items(Align::Start)
                     .push(
                         slider::Slider::new(
@@ -64,7 +70,8 @@ impl AudioSettingsModel {
                             settings.input_slider_value,
                             Self::slider_change(AudioType::Input),
                         )
-                        .step(1),
+                        .step(1)
+                        .width(Length::from(slider_width as u16)),
                     )
                     .push(Text::new(settings.input_slider_value.to_string()))
                     .push(
@@ -72,19 +79,22 @@ impl AudioSettingsModel {
                             &mut self.input_mute_button,
                             if settings.input_muted {
                                 Text::new("unmute input")
+                                    .horizontal_alignment(HorizontalAlignment::Center)
                             } else {
                                 Text::new("mute input")
+                                    .horizontal_alignment(HorizontalAlignment::Center)
                             },
                         )
                         .on_press(Message::AudioSettings(
                             AudioSettingsMessage::MutePressed(AudioType::Input),
-                        )),
+                        ))
+                            .width(Length::from(mute_width as u16)),
                     ),
             )
             //add output controls
             .push(
                 Row::new()
-                    .padding(20)
+                    .padding(padding as u16)
                     .align_items(Align::Start)
                     .push(
                         slider::Slider::new(
@@ -93,7 +103,8 @@ impl AudioSettingsModel {
                             settings.output_slider_value,
                             Self::slider_change(AudioType::Output),
                         )
-                        .step(1),
+                        .step(1)
+                        .width(Length::from(slider_width as u16)),
                     )
                     .push(Text::new(settings.output_slider_value.to_string()))
                     .push(
@@ -101,13 +112,16 @@ impl AudioSettingsModel {
                             &mut self.output_mute_button,
                             if settings.output_muted {
                                 Text::new("unmute output")
+                                    .horizontal_alignment(HorizontalAlignment::Center)
                             } else {
                                 Text::new("mute output")
+                                    .horizontal_alignment(HorizontalAlignment::Center)
                             },
                         )
                         .on_press(Message::AudioSettings(
                             AudioSettingsMessage::MutePressed(AudioType::Output),
-                        )),
+                        ))
+                        .width(Length::from(mute_width as u16)),
                     ),
             )
             .into()
@@ -118,7 +132,7 @@ impl AudioSettingsModel {
         msg: AudioSettingsMessage,
         player_update_channels: Vec<Sender<PlayerMessage>>,
     ) {
-        let mut settings = self.settings.lock().unwrap();
+        let mut settings = self.audio_settings.lock().unwrap();
 
         //change settings
         match msg {

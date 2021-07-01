@@ -45,7 +45,6 @@ impl Sound {
         let path = self.file_path.clone();
 
         let _thread_handle = thread::spawn(move || {
-            println!("started");
             let (_stream, stream_handle) = OutputStream::try_default().unwrap();
             let file_buf = BufReader::new(File::open(path).unwrap());
             let source = Decoder::new(file_buf).unwrap();
