@@ -2,7 +2,7 @@ use crate::audio_settings::{AudioSettings};
 use crate::{sound_player, WindowSettings};
 use crate::sound_player::{PlayState, PlayerMessage};
 use crate::Message;
-use iced::{button, text_input, Button, Column, Element, Row, Text, TextInput, HorizontalAlignment, VerticalAlignment, Length};
+use iced::{button, text_input, Button, Column, Element, Row, Text, TextInput, HorizontalAlignment, VerticalAlignment, Length, Align};
 use std::fmt::{Debug, Alignment};
 use std::path::{Path};
 
@@ -24,7 +24,8 @@ pub enum ButtonMessage {
     PlayButtonPressed(usize),
     AddButtonPressed,
     DeleteButtonPressed(usize),
-    AddConfirmButtonPressed,
+    AddConfirmButtonPressed(bool), //ok || not ok
+    CancelButtonPressed,
     PathOk(String),
     PathNotOk(String),
     NameChange(String),
@@ -35,6 +36,7 @@ pub struct PlayButtons {
     pub audio_settings: Arc<Mutex<AudioSettings>>,
     pub video_settings: Arc<Mutex<WindowSettings>>,
     add_button: button::State,
+    cancel_button: button::State,
     is_being_added: bool,
     button_row_len: usize,
     allow_confirm: bool,
@@ -61,6 +63,7 @@ impl Default for PlayButtons {
             temp_name: "".to_string(),
             name_input: Default::default(),
             add_confirm_button: Default::default(),
+            cancel_button: Default::default()
         }
     }
 }
@@ -102,17 +105,21 @@ impl PlayButtons {
                 self.is_being_added = true;
             }
 
-            ButtonMessage::AddConfirmButtonPressed => {
-                self.buttons.push(PlayButton {
-                    play_state: Default::default(),
-                    delete_state: Default::default(),
-                    sound: sound_player::Sound::new(self.temp_path.clone()),
-                    player_handle_sender: None,
-                    player_handle_receiver: None,
-                    name: self.temp_name.to_owned(),
-                });
-                self.temp_path = "".to_string();
-                self.is_being_added = false;
+            ButtonMessage::AddConfirmButtonPressed (ok) => {
+                if ok {
+                    self.buttons.push(PlayButton {
+                        play_state: Default::default(),
+                        delete_state: Default::default(),
+                        sound: sound_player::Sound::new(self.temp_path.clone()),
+                        player_handle_sender: None,
+                        player_handle_receiver: None,
+                        name: self.temp_name.to_owned(),
+                    });
+                    self.temp_path = "".to_string();
+                    self.temp_name = "".to_string();
+                    self.allow_confirm = false;
+                    self.is_being_added = false;
+                }
             }
 
             ButtonMessage::DeleteButtonPressed(index) => {
@@ -136,17 +143,23 @@ impl PlayButtons {
                 self.temp_name = name;
             }
 
+            ButtonMessage::CancelButtonPressed => {
+                self.temp_path = "".to_string();
+                self.temp_name = "".to_string();
+                self.allow_confirm = false;
+                self.is_being_added = false;
+            }
         }
     }
 
     pub fn view(&mut self) -> Element<'_, Message> {
         let mut elements = vec![];
+        let settings = self.video_settings.lock().unwrap();
+        let (mut width, mut height) = (settings.width, settings.height);
         elements.push({
             let mut children: Vec<Element<'_, _>> = vec![];
             let mut row_children: Vec<Element<'_, _>> = vec![];
 
-            let settings = self.video_settings.lock().unwrap();
-            let (mut width, mut height) = (settings.width, settings.height);
             if width >=self.button_row_len && height != 0
             {
                 let mut button_width = (width / self.button_row_len) - ((width / self.button_row_len) / 8);
@@ -242,38 +255,66 @@ impl PlayButtons {
                 Column::new().into()
             }
     });
-        if self.is_being_added {
+        if self.is_being_added && width != 0 && height != 0 {
             elements.push(
                 if self.is_being_added {
                     //TODO add winapi filepicker for Windows users
                     let add_button = if self.allow_confirm {
                         Button::new(&mut self.add_confirm_button, Text::new("confirm"))
-                            .on_press(Message::PlayButtons(ButtonMessage::AddConfirmButtonPressed))
+                            .on_press(Message::PlayButtons(ButtonMessage::AddConfirmButtonPressed(true)))
                     } else {
                         Button::new(&mut self.add_confirm_button, Text::new("confirm"))
                     };
 
                     Column::new()
                         .push(TextInput::new(
-                            &mut self.path_input,
-                            "enter the filepath here",
-                            &self.temp_path,
-                            |val| {
-                                if Path::exists(Path::new(val.as_str())) {
-                                    //TODO: add FileType check
-                                    Message::PlayButtons(ButtonMessage::PathOk(val))
-                                } else {
-                                    Message::PlayButtons(ButtonMessage::PathNotOk(val))
+                                &mut self.path_input,
+                                "enter the filepath here",
+                                &self.temp_path,
+                                |val| {
+                                    if Path::exists(Path::new(val.as_str())) {
+                                        //TODO: add FileType check
+                                        Message::PlayButtons(ButtonMessage::PathOk(val))
+                                    } else {
+                                        Message::PlayButtons(ButtonMessage::PathNotOk(val))
+                                    }
+                                },
+                            )
+                            .width(Length::from(((width / 100) * 80) as u16))
+                            .on_submit(
+                                if self.allow_confirm{
+                                    Message::PlayButtons(ButtonMessage::AddConfirmButtonPressed(true))
                                 }
-                            },
-                        ))
+                                else {
+                                    Message::PlayButtons(ButtonMessage::AddConfirmButtonPressed(false))
+                                }
+                            )                        )
                         .push(TextInput::new(
-                            &mut self.name_input,
-                            "enter button name here",
-                            &self.temp_name,
-                            |val| Message::PlayButtons(ButtonMessage::NameChange(val))
-                        ))
-                        .push(add_button)
+                                &mut self.name_input,
+                                "enter button name here",
+                                &self.temp_name,
+                                |val| Message::PlayButtons(ButtonMessage::NameChange(val))
+                            )
+                            .width(Length::from(((width / 100) * 80) as u16))
+                            .on_submit(
+                                if self.allow_confirm{
+                                    Message::PlayButtons(ButtonMessage::AddConfirmButtonPressed(true))
+                                }
+                                    else {
+                                        Message::PlayButtons(ButtonMessage::AddConfirmButtonPressed(false))
+                                    }
+                            )
+                        )
+                        .push(Row::new()
+                            .push(add_button)
+                            .push(Button::new(
+                                &mut self.cancel_button,
+                                Text::new("cancel")
+                            )
+                                .on_press(Message::PlayButtons(ButtonMessage::CancelButtonPressed))
+                            )
+                        )
+                        .align_items(Align::Center)
                         .into()
                 } else {
                     Column::new().into()
