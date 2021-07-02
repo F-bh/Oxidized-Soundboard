@@ -1,4 +1,4 @@
-use crate::audio_settings::{AudioSettings};
+use crate::audio_settings::AudioSettings;
 use rodio::{Decoder, OutputStream, Sink, Source};
 use std::fs::File;
 use std::io::BufReader;
@@ -7,6 +7,7 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime};
 
+#[derive(Debug, Clone)]
 pub struct Sound {
     pub file_path: String,
     pub state: PlayState,
@@ -18,6 +19,7 @@ pub enum PlayerMessage {
     Stop,
 }
 
+#[derive(Debug, Clone)]
 pub enum PlayState {
     Playing,
     Stopped,

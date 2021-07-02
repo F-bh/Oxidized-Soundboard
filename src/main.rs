@@ -1,14 +1,19 @@
+mod add_view;
 mod audio_settings;
 mod play_buttons;
 mod sound_player;
 
+use crate::add_view::{AddView, AddViewMessage};
 use crate::audio_settings::{AudioSettings, AudioSettingsMessage, AudioSettingsModel};
 use crate::play_buttons::{ButtonMessage, PlayButtons};
-use crate::sound_player::PlayerMessage;
-use iced::{Align, Column, Element, Sandbox, Settings, Application, Clipboard, Executor, executor, Command, Scrollable, scrollable};
-use std::sync::mpsc::Sender;
+use crate::sound_player::{PlayerMessage};
+use iced::{
+    executor, scrollable, Align, Application, Clipboard, Column, Command, Element, Executor,
+    Sandbox, Scrollable, Settings,
+};
+use iced_native::{Event, Subscription};
+use std::sync::mpsc::{Sender};
 use std::sync::{Arc, Mutex};
-use iced_native::{Subscription, Event};
 
 fn main() -> iced::Result {
     Example::run(Settings {
@@ -18,7 +23,7 @@ fn main() -> iced::Result {
 }
 
 #[derive(Default)]
-pub struct WindowSettings{
+pub struct WindowSettings {
     pub height: usize,
     pub width: usize,
 }
@@ -28,6 +33,7 @@ pub struct Example {
     scroll_state: scrollable::State,
     audio_model: AudioSettingsModel,
     play_buttons: PlayButtons,
+    add_view: AddView,
     audio_settings: Arc<Mutex<AudioSettings>>,
     window_settings: Arc<Mutex<WindowSettings>>,
 }
@@ -36,7 +42,8 @@ pub struct Example {
 pub enum Message {
     AudioSettings(AudioSettingsMessage),
     PlayButtons(ButtonMessage),
-    WindowResized(usize, usize)
+    AddView(AddViewMessage),
+    WindowResized(usize, usize),
 }
 
 impl Application for Example {
@@ -46,10 +53,12 @@ impl Application for Example {
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
         let mut app = Example::default();
+        //enable memory sharing between components
         app.audio_settings = app.audio_model.audio_settings.clone();
         app.play_buttons.audio_settings = app.audio_settings.clone();
         app.play_buttons.video_settings = app.window_settings.clone();
         app.audio_model.video_settings = app.window_settings.clone();
+        app.add_view.video_settings = app.window_settings.clone();
         (app, Command::none())
     }
 
@@ -57,7 +66,7 @@ impl Application for Example {
         String::from("Oxidized-Soundboard")
     }
 
-    fn update(&mut self, message: Self::Message, _clipboard: &mut Clipboard) -> Command<Message>{
+    fn update(&mut self, message: Self::Message, _clipboard: &mut Clipboard) -> Command<Message> {
         match message {
             Message::AudioSettings(msg) => {
                 let mut player_update_channels: Vec<Sender<PlayerMessage>> = vec![];
@@ -70,10 +79,18 @@ impl Application for Example {
 
                 AudioSettingsModel::update(&mut self.audio_model, msg, player_update_channels)
             }
+
+            Message::AddView(msg) => {
+                let btn_msg = AddView::update(&mut self.add_view, msg);
+                if let Some(msg) = btn_msg {
+                    PlayButtons::update(&mut self.play_buttons, msg);
+                }
+            }
+
             Message::PlayButtons(msg) => PlayButtons::update(&mut self.play_buttons, msg),
 
-            Message::WindowResized(width, height) =>{
-                let mut settings =  self.window_settings.lock().unwrap();
+            Message::WindowResized(width, height) => {
+                let mut settings = self.window_settings.lock().unwrap();
                 settings.width = width;
                 settings.height = height;
             }
@@ -81,27 +98,23 @@ impl Application for Example {
         Command::none()
     }
 
-    //TODO Sounddateien per drag and drop hinzufügen
-    fn subscription(& self) -> Subscription<Message>{
-        iced_native::subscription::events_with(
-            |event, _status |
-            match event{
-                Event::Window(event) => {
-                    match event {
-                        iced_native::window::Event::Resized { width, height } => {
-                            Some(Message::WindowResized(width as usize, height as usize))
-                        }
-                        //Event::FileHovered(_) => {}
-                        //Event::FileDropped(_) => {}
-                        //Event::FilesHoveredLeft => {}
-                        _ => None
+    //TODO add sound files using drag and drop
+    fn subscription(&self) -> Subscription<Message> {
+        iced_native::subscription::events_with(|event, _status| match event {
+            Event::Window(event) => {
+                match event {
+                    iced_native::window::Event::Resized { width, height } => {
+                        Some(Message::WindowResized(width as usize, height as usize))
                     }
+                    //Event::FileHovered(_) => {}
+                    //Event::FileDropped(_) => {}
+                    //Event::FilesHoveredLeft => {}
+                    _ => None,
                 }
-                _ => None
             }
-        )
+            _ => None,
+        })
     }
-
 
     fn view(&mut self) -> Element<'_, Self::Message> {
         Scrollable::new(&mut self.scroll_state)
@@ -111,7 +124,8 @@ impl Application for Example {
                     .align_items(Align::Center)
                     .push(self.audio_model.view())
                     .push(self.play_buttons.view())
-            ).into()
+                    .push(self.add_view.view()),
+            )
+            .into()
     }
-
 }

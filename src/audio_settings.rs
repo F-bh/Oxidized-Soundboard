@@ -1,6 +1,8 @@
 use crate::sound_player::PlayerMessage;
 use crate::{Message, WindowSettings};
-use iced::{button, slider, Align, Button, Column, Element, Row, Text, Length, HorizontalAlignment};
+use iced::{
+    button, slider, Align, Button, Column, Element, HorizontalAlignment, Length, Row, Text,
+};
 use std::ops::RangeInclusive;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
@@ -51,7 +53,7 @@ pub struct AudioSettingsModel {
 impl AudioSettingsModel {
     pub fn view(&mut self) -> Element<'_, Message> {
         let settings = self.video_settings.lock().unwrap();
-        let (width, height) = (settings.width, settings.height);
+        let (width, _height) = (settings.width, settings.height);
         let mute_width = (settings.width / 100) * 25;
         let slider_width = (width / 100) * 70;
         let padding = 5;
@@ -85,10 +87,10 @@ impl AudioSettingsModel {
                                     .horizontal_alignment(HorizontalAlignment::Center)
                             },
                         )
-                        .on_press(Message::AudioSettings(
-                            AudioSettingsMessage::MutePressed(AudioType::Input),
-                        ))
-                            .width(Length::from(mute_width as u16)),
+                        .on_press(Message::AudioSettings(AudioSettingsMessage::MutePressed(
+                            AudioType::Input,
+                        )))
+                        .width(Length::from(mute_width as u16)),
                     ),
             )
             //add output controls
@@ -118,9 +120,9 @@ impl AudioSettingsModel {
                                     .horizontal_alignment(HorizontalAlignment::Center)
                             },
                         )
-                        .on_press(Message::AudioSettings(
-                            AudioSettingsMessage::MutePressed(AudioType::Output),
-                        ))
+                        .on_press(Message::AudioSettings(AudioSettingsMessage::MutePressed(
+                            AudioType::Output,
+                        )))
                         .width(Length::from(mute_width as u16)),
                     ),
             )
