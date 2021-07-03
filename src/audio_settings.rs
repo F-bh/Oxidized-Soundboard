@@ -8,23 +8,23 @@ use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum AudioType {
+pub(crate) enum AudioType {
     Input,
     Output,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum AudioSettingsMessage {
+pub(crate) enum AudioSettingsMessage {
     SliderChange(i32, AudioType),
     MutePressed(AudioType),
 }
 
 #[derive(Clone)]
-pub struct AudioSettings {
-    pub output_slider_value: i32,
-    pub output_muted: bool,
-    pub input_slider_value: i32,
-    pub input_muted: bool,
+pub(crate) struct AudioSettings {
+    pub(crate) output_slider_value: i32,
+    pub(crate) output_muted: bool,
+    pub(crate) input_slider_value: i32,
+    pub(crate) input_muted: bool,
 }
 
 impl Default for AudioSettings {
@@ -40,9 +40,9 @@ impl Default for AudioSettings {
 }
 
 #[derive(Default)]
-pub struct AudioSettingsModel {
-    pub audio_settings: Arc<Mutex<AudioSettings>>,
-    pub video_settings: Arc<Mutex<WindowSettings>>,
+pub(crate) struct AudioSettingsModel {
+    pub(crate) audio_settings: Arc<Mutex<AudioSettings>>,
+    pub(crate) video_settings: Arc<Mutex<WindowSettings>>,
     output_slider: slider::State,
     output_mute_button: button::State,
     input_slider: slider::State,
@@ -53,28 +53,19 @@ impl AudioSettingsModel {
     pub fn view(&mut self) -> Element<'_, Message> {
         let settings = self.video_settings.lock().unwrap();
         let (width, _height) = (settings.width, settings.height);
-        let mute_width = (settings.width / 100) * 25;
-        let slider_width = (width / 100) * 70;
-        let padding = 5;
+        let mute_width = (settings.width / 100) * 20;
+        let slider_width = (width / 100) * 60;
+        let padding: u16 = 5;
+        let spacing: u16 = 10;
         let settings = self.audio_settings.lock().unwrap();
         Column::new()
             .padding(padding as u16)
             //add input controls
             .push(
                 Row::new()
-                    .padding(padding as u16)
+                    .spacing(spacing)
+                    .padding(padding)
                     .align_items(Align::Start)
-                    .push(
-                        slider::Slider::new(
-                            &mut self.input_slider,
-                            RangeInclusive::new(0, 100),
-                            settings.input_slider_value,
-                            Self::slider_change(AudioType::Input),
-                        )
-                        .step(1)
-                        .width(Length::from(slider_width as u16)),
-                    )
-                    .push(Text::new(settings.input_slider_value.to_string()))
                     .push(
                         Button::new(
                             &mut self.input_mute_button,
@@ -86,28 +77,29 @@ impl AudioSettingsModel {
                                     .horizontal_alignment(HorizontalAlignment::Center)
                             },
                         )
-                        .on_press(Message::AudioSettings(AudioSettingsMessage::MutePressed(
-                            AudioType::Input,
-                        )))
-                        .width(Length::from(mute_width as u16)),
-                    ),
-            )
-            //add output controls
-            .push(
-                Row::new()
-                    .padding(padding as u16)
-                    .align_items(Align::Start)
+                            .on_press(Message::AudioSettings(AudioSettingsMessage::MutePressed(
+                                AudioType::Input,
+                            )))
+                            .width(Length::from(mute_width as u16)),
+                    )
                     .push(
                         slider::Slider::new(
-                            &mut self.output_slider,
+                            &mut self.input_slider,
                             RangeInclusive::new(0, 100),
-                            settings.output_slider_value,
-                            Self::slider_change(AudioType::Output),
+                            settings.input_slider_value,
+                            Self::slider_change(AudioType::Input),
                         )
                         .step(1)
                         .width(Length::from(slider_width as u16)),
                     )
-                    .push(Text::new(settings.output_slider_value.to_string()))
+                    .push(Text::new(settings.input_slider_value.to_string()))
+            )
+            //add output controls
+            .push(
+                Row::new()
+                    .spacing(spacing)
+                    .padding(padding)
+                    .align_items(Align::Start)
                     .push(
                         Button::new(
                             &mut self.output_mute_button,
@@ -119,11 +111,22 @@ impl AudioSettingsModel {
                                     .horizontal_alignment(HorizontalAlignment::Center)
                             },
                         )
-                        .on_press(Message::AudioSettings(AudioSettingsMessage::MutePressed(
-                            AudioType::Output,
-                        )))
-                        .width(Length::from(mute_width as u16)),
-                    ),
+                            .on_press(Message::AudioSettings(AudioSettingsMessage::MutePressed(
+                                AudioType::Output,
+                            )))
+                            .width(Length::from(mute_width as u16))
+                    )
+                    .push(
+                        slider::Slider::new(
+                            &mut self.output_slider,
+                            RangeInclusive::new(0, 100),
+                            settings.output_slider_value,
+                            Self::slider_change(AudioType::Output),
+                        )
+                        .step(1)
+                        .width(Length::from(slider_width as u16)),
+                    )
+                    .push(Text::new(settings.output_slider_value.to_string()))
             )
             .into()
     }

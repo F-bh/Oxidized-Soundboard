@@ -8,25 +8,25 @@ use std::thread;
 use std::time::{Duration, SystemTime};
 
 #[derive(Debug, Clone)]
-pub struct Sound {
-    pub file_path: String,
-    pub state: PlayState,
+pub(crate) struct Sound {
+    pub(crate) file_path: String,
+    pub(crate) state: PlayState,
 }
 
 #[derive(Clone, Copy)]
-pub enum PlayerMessage {
+pub(crate) enum PlayerMessage {
     SettingsChange,
     Stop,
 }
 
 #[derive(Debug, Clone)]
-pub enum PlayState {
+pub(crate) enum PlayState {
     Playing,
     Stopped,
 }
 
 impl Sound {
-    pub fn new(p: String) -> Self {
+    pub(crate) fn new(p: String) -> Self {
         Self {
             file_path: p,
             state: PlayState::Stopped,
@@ -37,10 +37,7 @@ impl Sound {
     // returns a channel Sender to send messages to the player and a receiver to receive messages from the player
     // TODO let user specify output
     // TODO remove unwraps
-    pub fn play(
-        &self,
-        settings: Arc<Mutex<AudioSettings>>,
-    ) -> (Sender<PlayerMessage>, Receiver<PlayState>) {
+    pub(crate) fn play( &self, settings: Arc<Mutex<AudioSettings>>,) -> (Sender<PlayerMessage>, Receiver<PlayState>) {
         let (tx_player_as_receiver, rx_player_as_receiver) = mpsc::channel();
         let (tx_player_as_sender, rx_player_as_sender) = mpsc::channel();
 

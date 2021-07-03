@@ -23,13 +23,13 @@ fn main() -> iced::Result {
 }
 
 #[derive(Default)]
-pub struct WindowSettings {
-    pub height: usize,
-    pub width: usize,
+pub(crate) struct WindowSettings {
+    pub(crate) height: usize,
+    pub(crate) width: usize,
 }
 
 #[derive(Default)]
-pub struct Example {
+pub(crate) struct Example {
     scroll_state: scrollable::State,
     audio_model: AudioSettingsModel,
     play_buttons: PlayButtons,
@@ -39,7 +39,7 @@ pub struct Example {
 }
 
 #[derive(Debug, Clone)]
-pub enum Message {
+pub(crate) enum Message {
     AudioSettings(AudioSettingsMessage),
     PlayButtons(ButtonMessage),
     AddView(AddViewMessage),

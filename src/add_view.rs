@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 #[derive(Default)]
-pub struct AddView {
+pub(crate) struct AddView {
     pub(crate) video_settings: Arc<Mutex<WindowSettings>>,
     cancel_button: button::State,
     is_being_added: bool,
@@ -23,7 +23,7 @@ pub struct AddView {
 }
 
 #[derive(Debug, Clone)]
-pub enum AddViewMessage {
+pub(crate) enum AddViewMessage {
     CancelButtonPressed,
     PathOk(String),
     PathNotOk(String),
@@ -81,7 +81,7 @@ impl AddView {
         ret_val
     }
 
-    pub fn view(&mut self) -> Element<'_, Message> {
+    pub(crate) fn view(&mut self) -> Element<'_, Message> {
         let settings = self.video_settings.lock().unwrap();
         let (width, height) = (settings.width, settings.height);
 

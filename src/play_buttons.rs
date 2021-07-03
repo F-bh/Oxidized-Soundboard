@@ -14,7 +14,7 @@ use std::fmt::{Debug};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
 
-pub struct PlayButton {
+pub(crate) struct PlayButton {
     pub(crate) player_handle_sender: Option<Sender<sound_player::PlayerMessage>>,
     pub(crate) player_handle_receiver: Option<Receiver<sound_player::PlayState>>,
     play_state: button::State,
@@ -37,14 +37,14 @@ impl PlayButton {
 }
 
 #[derive(Debug, Clone)]
-pub enum ButtonMessage {
+pub(crate) enum ButtonMessage {
     PlayButtonPressed(usize),
     AddButtonPressed,
     DeleteButtonPressed(usize),
     ButtonAdded(Sound, String), //sound and name
 }
 
-pub struct PlayButtons {
+pub(crate) struct PlayButtons {
     pub(crate) buttons: Vec<PlayButton>,
     pub(crate) audio_settings: Arc<Mutex<AudioSettings>>,
     pub(crate) video_settings: Arc<Mutex<WindowSettings>>,
@@ -67,7 +67,7 @@ impl Default for PlayButtons {
 }
 
 impl PlayButtons {
-    pub fn update(&mut self, msg: ButtonMessage) {
+    pub(crate) fn update(&mut self, msg: ButtonMessage) {
         match msg {
             ButtonMessage::PlayButtonPressed(index) => {
                 let btn = &mut self.buttons[index];
@@ -115,7 +115,7 @@ impl PlayButtons {
         }
     }
 
-    pub fn view(&mut self) -> Element<'_, Message> {
+    pub(crate) fn view(&mut self) -> Element<'_, Message> {
         let settings = self.video_settings.lock().unwrap();
         let (width, height) = (settings.width, settings.height);
         let mut children: Vec<Element<'_, _>> = vec![];
@@ -218,7 +218,7 @@ impl PlayButtons {
             }
             Column::with_children(children).into()
         } else {
-            Row::new().into()
+            Column::new().into()
         }
     }
 }
