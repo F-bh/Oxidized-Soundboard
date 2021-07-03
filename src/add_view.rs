@@ -5,7 +5,7 @@ use crate::{sound_player, Message, WindowSettings};
 use iced::{
     button, text_input, Align, Button, Column, Element, Length, Row, Text, TextInput,
 };
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use std::sync::{Arc, Mutex};
 
@@ -29,6 +29,7 @@ pub enum AddViewMessage {
     PathNotOk(String),
     NameChange(String),
     ButtonAdded(Sound, String, bool), //sound, name, ok
+    FileDropped(PathBuf),
     AddPressed,
 }
 
@@ -68,6 +69,13 @@ impl AddView {
             }
             AddViewMessage::AddPressed => {
                 self.is_being_added = true;
+            }
+            AddViewMessage::FileDropped(path_buf) => {
+                if let Some(str) = path_buf.to_str(){
+                    self.temp_path = String::from(str);
+                    self.allow_confirm = true;
+                    self.is_being_added = true;
+                }
             }
         }
         ret_val

@@ -43,7 +43,6 @@ impl Default for AudioSettings {
 pub struct AudioSettingsModel {
     pub audio_settings: Arc<Mutex<AudioSettings>>,
     pub video_settings: Arc<Mutex<WindowSettings>>,
-    // pub player_handle_sender: Option<Sender<sound_player::PlayerMessage>>
     output_slider: slider::State,
     output_mute_button: button::State,
     input_slider: slider::State,
