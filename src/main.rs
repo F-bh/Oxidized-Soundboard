@@ -16,10 +16,15 @@ use std::sync::mpsc::{Sender};
 use std::sync::{Arc, Mutex};
 
 fn main() -> iced::Result {
-    Example::run(Settings {
-        antialiasing: true,
-        ..Settings::default()
-    })
+    if cfg!(target_os = "windows"){
+        Example::run(Settings {
+            ..Settings::default()})
+    }
+    else{
+         Example::run(Settings {
+             antialiasing: true,
+             ..Settings::default()})
+    }
 }
 
 #[derive(Default)]
