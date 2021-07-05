@@ -16,8 +16,8 @@ pub(crate) struct AddView {
     is_being_added: bool,
     allow_confirm: bool,
     add_confirm_button: button::State,
-    path_input: text_input::State,
-    name_input: text_input::State,
+    path_output1: text_input::State,
+    name_output1: text_input::State,
     temp_path: String,
     temp_name: String,
 }
@@ -103,7 +103,7 @@ impl AddView {
                 Column::new()
                     .push(
                         TextInput::new(
-                            &mut self.path_input,
+                            &mut self.path_output1,
                             "enter the filepath here",
                             &self.temp_path,
                             |val| {
@@ -126,7 +126,7 @@ impl AddView {
                     )
                     .push(
                         TextInput::new(
-                            &mut self.name_input,
+                            &mut self.name_output1,
                             "enter button name here",
                             &self.temp_name,
                             |val| Message::AddView(AddViewMessage::NameChange(val)),

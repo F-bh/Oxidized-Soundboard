@@ -13,8 +13,8 @@ use rodio::cpal::traits::HostTrait;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub(crate) enum AudioType {
-    Input,
-    Output,
+    Output1,
+    Output2,
 }
 
 #[derive(Debug, Clone)]
@@ -27,24 +27,24 @@ pub(crate) enum AudioSettingsMessage {
 
 #[derive(Clone)]
 pub(crate) struct AudioSettings {
-    pub(crate) output_slider_value: i32,
-    pub(crate) output_muted: bool,
-    pub(crate) input_slider_value: i32,
-    pub(crate) input_muted: bool,
-    pub(crate) out_dev_name: String,
-    pub(crate) in_dev_name : String,
+    pub(crate) output2_slider_value: i32,
+    pub(crate) output2_muted: bool,
+    pub(crate) output1_slider_value: i32,
+    pub(crate) output1_muted: bool,
+    pub(crate) out2_dev_name: String,
+    pub(crate) out1_dev_name: String,
 }
 
 impl Default for AudioSettings {
     fn default() -> Self {
         //TODO save and load Settings
         Self {
-            output_slider_value: 0,
-            output_muted: false,
-            input_slider_value: 0,
-            input_muted: false,
-            out_dev_name: "".to_string(),
-            in_dev_name: "".to_string()
+            output2_slider_value: 0,
+            output2_muted: false,
+            output1_slider_value: 0,
+            output1_muted: false,
+            out2_dev_name: "".to_string(),
+            out1_dev_name: "".to_string()
         }
     }
 }
@@ -52,15 +52,15 @@ impl Default for AudioSettings {
 pub(crate) struct AudioSettingsModel {
     pub(crate) audio_settings: Arc<Mutex<AudioSettings>>,
     pub(crate) video_settings: Arc<Mutex<WindowSettings>>,
-    output_slider: slider::State,
-    output_mute_button: button::State,
-    input_slider: slider::State,
-    input_mute_button: button::State,
-    in_list_state: pick_list::State<String>,
-    out_list_state: pick_list::State<String>,
-    out_dev_names: Vec<String>,
-    out_dev_name: String,
-    in_dev_name : String,
+    output2_slider: slider::State,
+    output2_mute_button: button::State,
+    output1_slider: slider::State,
+    output1_mute_button: button::State,
+    out1_list_state: pick_list::State<String>,
+    out2_list_state: pick_list::State<String>,
+    out2_dev_names: Vec<String>,
+    out2_dev_name: String,
+    out1_dev_name: String,
 }
 
 fn get_audio_device_names() -> Vec<String>{
@@ -83,15 +83,15 @@ impl Default for AudioSettingsModel{
         Self {
             audio_settings: Arc::new(Mutex::new(Default::default())),
             video_settings: Arc::new(Mutex::new(Default::default())),
-            output_slider: Default::default(),
-            output_mute_button: Default::default(),
-            input_slider: Default::default(),
-            input_mute_button: Default::default(),
-            in_list_state: Default::default(),
-            out_list_state: Default::default(),
-            out_dev_names: get_audio_device_names(),
-            out_dev_name: "".to_string(),
-            in_dev_name: "".to_string()
+            output2_slider: Default::default(),
+            output2_mute_button: Default::default(),
+            output1_slider: Default::default(),
+            output1_mute_button: Default::default(),
+            out1_list_state: Default::default(),
+            out2_list_state: Default::default(),
+            out2_dev_names: get_audio_device_names(),
+            out2_dev_name: "".to_string(),
+            out1_dev_name: "".to_string()
         }
     }
 }
@@ -110,7 +110,7 @@ impl AudioSettingsModel {
         let settings = self.audio_settings.lock().unwrap();
         Column::new()
             .padding(padding as u16)
-            //add input controls
+            //add output1 controls
             .push(
                 Row::new()
                     .spacing(spacing)
@@ -118,42 +118,42 @@ impl AudioSettingsModel {
                     .align_items(Align::Start)
                     .push(
                         Button::new(
-                            &mut self.input_mute_button,
-                            if settings.input_muted {
-                                Text::new("unmute input")
+                            &mut self.output1_mute_button,
+                            if settings.output1_muted {
+                                Text::new("unmute output 1")
                                     .horizontal_alignment(HorizontalAlignment::Center)
                             } else {
-                                Text::new("mute input")
+                                Text::new("mute output 1")
                                     .horizontal_alignment(HorizontalAlignment::Center)
                             },
                         )
                             .on_press(Message::AudioSettings(AudioSettingsMessage::MutePressed(
-                                AudioType::Input,
+                                AudioType::Output1,
                             )))
                             .width(Length::from(mute_width as u16)),
                     )
                     .push(
                         slider::Slider::new(
-                            &mut self.input_slider,
+                            &mut self.output1_slider,
                             RangeInclusive::new(0, 100),
-                            settings.input_slider_value,
-                            Self::slider_change(AudioType::Input),
+                            settings.output1_slider_value,
+                            Self::slider_change(AudioType::Output1),
                         )
                         .step(1)
                         .width(Length::from(slider_width as u16)),
                     )
-                    .push(Text::new(settings.input_slider_value.to_string()))
+                    .push(Text::new(settings.output1_slider_value.to_string()))
                     .push(
                         iced::widget::PickList::new(
-                            &mut self.in_list_state,
-                            &self.out_dev_names,
-                            Some(self.in_dev_name.clone()),
+                            &mut self.out1_list_state,
+                            &self.out2_dev_names,
+                            Some(self.out1_dev_name.clone()),
                             Message::AudioSettingsInDeviceSelected
                         )
                             .width(Length::from(pick_list_width as u16))
                     )
             )
-            //add output controls
+            //add output2 controls
             .push(
                 Row::new()
                     .spacing(spacing)
@@ -161,36 +161,36 @@ impl AudioSettingsModel {
                     .align_items(Align::Start)
                     .push(
                         Button::new(
-                            &mut self.output_mute_button,
-                            if settings.output_muted {
-                                Text::new("unmute output")
+                            &mut self.output2_mute_button,
+                            if settings.output2_muted {
+                                Text::new("unmute output 2")
                                     .horizontal_alignment(HorizontalAlignment::Center)
                             } else {
-                                Text::new("mute output")
+                                Text::new("mute output 2")
                                     .horizontal_alignment(HorizontalAlignment::Center)
                             },
                         )
                             .on_press(Message::AudioSettings(AudioSettingsMessage::MutePressed(
-                                AudioType::Output,
+                                AudioType::Output2,
                             )))
                             .width(Length::from(mute_width as u16))
                     )
                     .push(
                         slider::Slider::new(
-                            &mut self.output_slider,
+                            &mut self.output2_slider,
                             RangeInclusive::new(0, 100),
-                            settings.output_slider_value,
-                            Self::slider_change(AudioType::Output),
+                            settings.output2_slider_value,
+                            Self::slider_change(AudioType::Output2),
                         )
                         .step(1)
                         .width(Length::from(slider_width as u16)),
                     )
-                    .push(Text::new(settings.output_slider_value.to_string()))
+                    .push(Text::new(settings.output2_slider_value.to_string()))
                     .push(
                         iced::widget::PickList::new(
-                            &mut self.out_list_state,
-                            &self.out_dev_names,
-                            Some(self.out_dev_name.clone()),
+                            &mut self.out2_list_state,
+                            &self.out2_dev_names,
+                            Some(self.out2_dev_name.clone()),
                             Message::AudioSettingsOutDeviceSelected,
                         )
                             .width(Length::from(pick_list_width as u16))
@@ -209,26 +209,26 @@ impl AudioSettingsModel {
         //change settings
         match msg {
             AudioSettingsMessage::SliderChange(val, Type) => match Type {
-                AudioType::Input => settings.input_slider_value = val,
-                AudioType::Output => settings.output_slider_value = val,
+                AudioType::Output1 => settings.output1_slider_value = val,
+                AudioType::Output2 => settings.output2_slider_value = val,
             }
 
             AudioSettingsMessage::MutePressed(Type) => match Type {
-                AudioType::Input => settings.input_muted = !settings.input_muted,
-                AudioType::Output => settings.output_muted = !settings.output_muted,
+                AudioType::Output1 => settings.output1_muted = !settings.output1_muted,
+                AudioType::Output2 => settings.output2_muted = !settings.output2_muted,
             }
 
             AudioSettingsMessage::InDevSelected(name) => {
-                self.out_dev_names = get_audio_device_names();
-                self.in_dev_name = name.clone();
-                settings.in_dev_name = name;
+                self.out2_dev_names = get_audio_device_names();
+                self.out1_dev_name = name.clone();
+                settings.out2_dev_name = name;
             }
 
 
             AudioSettingsMessage::OutDevSelected(name) => {
-                self.out_dev_names = get_audio_device_names();
-                self.out_dev_name = name.clone();
-                settings.out_dev_name = name;
+                self.out2_dev_names = get_audio_device_names();
+                self.out2_dev_name = name.clone();
+                settings.out2_dev_name = name;
             }
         }
 
@@ -242,11 +242,11 @@ impl AudioSettingsModel {
     //function builder that returns an onChanged function depending on the audio_type
     fn slider_change(audio_type: AudioType) -> fn(i32) -> Message {
         return match audio_type {
-            AudioType::Input => |val: i32| {
-                Message::AudioSettings(AudioSettingsMessage::SliderChange(val, AudioType::Input))
+            AudioType::Output1 => |val: i32| {
+                Message::AudioSettings(AudioSettingsMessage::SliderChange(val, AudioType::Output1))
             },
-            AudioType::Output => |val: i32| {
-                Message::AudioSettings(AudioSettingsMessage::SliderChange(val, AudioType::Output))
+            AudioType::Output2 => |val: i32| {
+                Message::AudioSettings(AudioSettingsMessage::SliderChange(val, AudioType::Output2))
             },
         };
     }
