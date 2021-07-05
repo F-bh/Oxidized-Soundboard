@@ -44,6 +44,8 @@ pub(crate) enum Message {
     PlayButtons(ButtonMessage),
     AddView(AddViewMessage),
     WindowResized(usize, usize),
+    AudioSettingsOutDeviceSelected(String),//not an elegant solution
+    AudioSettingsInDeviceSelected(String), //not an elegant solution
 }
 
 impl Application for Example {
@@ -93,6 +95,28 @@ impl Application for Example {
                 let mut settings = self.window_settings.lock().unwrap();
                 settings.width = width;
                 settings.height = height;
+            }
+
+            Message::AudioSettingsInDeviceSelected(name) => {
+                let mut player_update_channels: Vec<Sender<PlayerMessage>> = vec![];
+
+                for btn in &self.play_buttons.buttons {
+                    if let Some(tx) = btn.player_handle_sender.clone() {
+                        player_update_channels.push(tx);
+                    }
+                }
+                AudioSettingsModel::update(&mut self.audio_model, AudioSettingsMessage::InDevSelected(name), player_update_channels);
+            }
+
+            Message::AudioSettingsOutDeviceSelected(name) => {
+                let mut player_update_channels: Vec<Sender<PlayerMessage>> = vec![];
+
+                for btn in &self.play_buttons.buttons {
+                    if let Some(tx) = btn.player_handle_sender.clone() {
+                        player_update_channels.push(tx);
+                    }
+                }
+                AudioSettingsModel::update(&mut self.audio_model, AudioSettingsMessage::OutDevSelected(name), player_update_channels);
             }
         }
         Command::none()

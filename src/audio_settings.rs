@@ -2,10 +2,13 @@ use crate::sound_player::PlayerMessage;
 use crate::{Message, WindowSettings};
 use iced::{
     button, slider, Align, Button, Column, Element, HorizontalAlignment, Length, Row, Text,
+    pick_list, PickList,
 };
 use std::ops::RangeInclusive;
 use std::sync::mpsc::Sender;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, PoisonError, MutexGuard};
+use rodio::{Device, DeviceTrait};
+use rodio::cpal::traits::HostTrait;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub(crate) enum AudioType {
@@ -13,10 +16,12 @@ pub(crate) enum AudioType {
     Output,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(crate) enum AudioSettingsMessage {
     SliderChange(i32, AudioType),
     MutePressed(AudioType),
+    InDevSelected(String),
+    OutDevSelected(String),
 }
 
 #[derive(Clone)]
@@ -25,6 +30,8 @@ pub(crate) struct AudioSettings {
     pub(crate) output_muted: bool,
     pub(crate) input_slider_value: i32,
     pub(crate) input_muted: bool,
+    pub(crate) out_dev_name: String,
+    pub(crate) in_dev_name : String,
 }
 
 impl Default for AudioSettings {
@@ -35,11 +42,12 @@ impl Default for AudioSettings {
             output_muted: false,
             input_slider_value: 0,
             input_muted: false,
+            out_dev_name: "".to_string(),
+            in_dev_name: "".to_string()
         }
     }
 }
 
-#[derive(Default)]
 pub(crate) struct AudioSettingsModel {
     pub(crate) audio_settings: Arc<Mutex<AudioSettings>>,
     pub(crate) video_settings: Arc<Mutex<WindowSettings>>,
@@ -47,14 +55,49 @@ pub(crate) struct AudioSettingsModel {
     output_mute_button: button::State,
     input_slider: slider::State,
     input_mute_button: button::State,
+    in_list_state: pick_list::State<String>,
+    out_list_state: pick_list::State<String>,
+    out_dev_names: Vec<String>,
+    out_dev_name: String,
+    in_dev_name : String,
 }
 
+impl Default for AudioSettingsModel{
+    fn default() -> Self {
+        let mut out_names = vec![];
+        if let Ok(devs) = rodio::cpal::default_host().output_devices() {
+            for dev in devs {
+                if let Ok(name) = dev.name() {
+                    out_names.push(name)
+                }
+            }
+        }
+
+        Self {
+            audio_settings: Arc::new(Mutex::new(Default::default())),
+            video_settings: Arc::new(Mutex::new(Default::default())),
+            output_slider: Default::default(),
+            output_mute_button: Default::default(),
+            input_slider: Default::default(),
+            input_mute_button: Default::default(),
+            in_list_state: Default::default(),
+            out_list_state: Default::default(),
+            out_dev_names: out_names,
+            out_dev_name: "".to_string(),
+            in_dev_name: "".to_string()
+        }
+    }
+}
+
+
 impl AudioSettingsModel {
+
     pub fn view(&mut self) -> Element<'_, Message> {
         let settings = self.video_settings.lock().unwrap();
         let (width, _height) = (settings.width, settings.height);
-        let mute_width = (settings.width / 100) * 20;
-        let slider_width = (width / 100) * 60;
+        let mute_width = (width / 100) * 20;
+        let slider_width = (width / 100) * 50;
+        let pick_list_width = (width/100) * 20;
         let padding: u16 = 5;
         let spacing: u16 = 10;
         let settings = self.audio_settings.lock().unwrap();
@@ -93,6 +136,15 @@ impl AudioSettingsModel {
                         .width(Length::from(slider_width as u16)),
                     )
                     .push(Text::new(settings.input_slider_value.to_string()))
+                    .push(
+                        iced::widget::PickList::new(
+                            &mut self.in_list_state,
+                            &self.out_dev_names,
+                            Some(self.in_dev_name.clone()),
+                            Message::AudioSettingsInDeviceSelected
+                        )
+                            .width(Length::from(pick_list_width as u16))
+                    )
             )
             //add output controls
             .push(
@@ -127,6 +179,15 @@ impl AudioSettingsModel {
                         .width(Length::from(slider_width as u16)),
                     )
                     .push(Text::new(settings.output_slider_value.to_string()))
+                    .push(
+                        iced::widget::PickList::new(
+                            &mut self.out_list_state,
+                            &self.out_dev_names,
+                            Some(self.out_dev_name.clone()),
+                            Message::AudioSettingsOutDeviceSelected,
+                        )
+                            .width(Length::from(pick_list_width as u16))
+                    )
             )
             .into()
     }
@@ -143,12 +204,42 @@ impl AudioSettingsModel {
             AudioSettingsMessage::SliderChange(val, Type) => match Type {
                 AudioType::Input => settings.input_slider_value = val,
                 AudioType::Output => settings.output_slider_value = val,
-            },
+            }
+
             AudioSettingsMessage::MutePressed(Type) => match Type {
                 AudioType::Input => settings.input_muted = !settings.input_muted,
                 AudioType::Output => settings.output_muted = !settings.output_muted,
-            },
+            }
+
+            AudioSettingsMessage::InDevSelected(name) => {
+                self.out_dev_names = vec![];
+                if let Ok(devs) = rodio::cpal::default_host().output_devices(){
+                    for dev in devs{
+                        if let Ok(name) = dev.name(){
+                            self.out_dev_names.push(name)
+                        }
+                    }
+                }
+                self.in_dev_name = name.clone();
+                settings.in_dev_name = name;
+            }
+
+
+            AudioSettingsMessage::OutDevSelected(name) => {
+                self.out_dev_names = vec![];
+                if let Ok(devs) = rodio::cpal::default_host().output_devices(){
+                    for dev in devs{
+                        if let Ok(name) = dev.name(){
+                            self.out_dev_names.push(name)
+                        }
+                    }
+                }
+                self.out_dev_name = name.clone();
+                settings.out_dev_name = name;
+            }
         }
+
+
         //send settings changed message to players
         for chan in player_update_channels.iter() {
             chan.send(PlayerMessage::SettingsChange);
