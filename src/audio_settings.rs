@@ -5,6 +5,7 @@ use iced::{
     pick_list, PickList,
 };
 use std::ops::RangeInclusive;
+use std::thread;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex, PoisonError, MutexGuard};
 use rodio::{Device, DeviceTrait};
@@ -62,17 +63,23 @@ pub(crate) struct AudioSettingsModel {
     in_dev_name : String,
 }
 
-impl Default for AudioSettingsModel{
-    fn default() -> Self {
-        let mut out_names = vec![];
-        if let Ok(devs) = rodio::cpal::default_host().output_devices() {
-            for dev in devs {
-                if let Ok(name) = dev.name() {
-                    out_names.push(name)
+fn get_audio_device_names() -> Vec<String>{
+    let handle = thread::spawn(|| -> Vec<String>{
+            let mut out_names = vec![];
+            if let Ok(devs) = rodio::cpal::default_host().output_devices() {
+                for dev in devs {
+                    if let Ok(name) = dev.name() {
+                        out_names.push(name)
+                    }
                 }
             }
-        }
+        out_names
+    });
+    handle.join().unwrap()
+}
 
+impl Default for AudioSettingsModel{
+    fn default() -> Self {
         Self {
             audio_settings: Arc::new(Mutex::new(Default::default())),
             video_settings: Arc::new(Mutex::new(Default::default())),
@@ -82,7 +89,7 @@ impl Default for AudioSettingsModel{
             input_mute_button: Default::default(),
             in_list_state: Default::default(),
             out_list_state: Default::default(),
-            out_dev_names: out_names,
+            out_dev_names: get_audio_device_names(),
             out_dev_name: "".to_string(),
             in_dev_name: "".to_string()
         }
@@ -212,28 +219,14 @@ impl AudioSettingsModel {
             }
 
             AudioSettingsMessage::InDevSelected(name) => {
-                self.out_dev_names = vec![];
-                if let Ok(devs) = rodio::cpal::default_host().output_devices(){
-                    for dev in devs{
-                        if let Ok(name) = dev.name(){
-                            self.out_dev_names.push(name)
-                        }
-                    }
-                }
+                self.out_dev_names = get_audio_device_names();
                 self.in_dev_name = name.clone();
                 settings.in_dev_name = name;
             }
 
 
             AudioSettingsMessage::OutDevSelected(name) => {
-                self.out_dev_names = vec![];
-                if let Ok(devs) = rodio::cpal::default_host().output_devices(){
-                    for dev in devs{
-                        if let Ok(name) = dev.name(){
-                            self.out_dev_names.push(name)
-                        }
-                    }
-                }
+                self.out_dev_names = get_audio_device_names();
                 self.out_dev_name = name.clone();
                 settings.out_dev_name = name;
             }

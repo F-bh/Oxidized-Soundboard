@@ -122,7 +122,6 @@ impl Application for Example {
         Command::none()
     }
 
-    #[cfg(not(target_os = "windows"))]
     fn subscription(&self) -> Subscription<Message> {
         iced_native::subscription::events_with(|event, _status| match event {
             Event::Window(event) => {
@@ -141,22 +140,6 @@ impl Application for Example {
             _ => None,
         })
     }
-
-    #[cfg(target_os = "windows")]
-    fn subscription(&self) -> Subscription<Message> {
-        iced_native::subscription::events_with(|event, _status| match event {
-            Event::Window(event) => {
-                match event {
-                    iced_native::window::Event::Resized { width, height } => {
-                        Some(Message::WindowResized(width as usize, height as usize))
-                    }
-                    _ => None,
-                }
-            }
-            _ => None,
-        })
-    }
-
 
     fn view(&mut self) -> Element<'_, Self::Message> {
         Scrollable::new(&mut self.scroll_state)
