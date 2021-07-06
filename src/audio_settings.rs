@@ -23,8 +23,8 @@ pub(crate) enum AudioType {
 pub(crate) enum AudioSettingsMessage {
     SliderChange(i32, AudioType),
     MutePressed(AudioType),
-    InDevSelected(String),
-    OutDevSelected(String),
+    OutDev1Selected(String),
+    OutDev2Selected(String),
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -60,7 +60,7 @@ pub(crate) struct AudioSettingsModel {
     output1_mute_button: button::State,
     out1_list_state: pick_list::State<String>,
     out2_list_state: pick_list::State<String>,
-    out2_dev_names: Vec<String>,
+    out_dev_names: Vec<String>,
     out2_dev_name: String,
     out1_dev_name: String,
 }
@@ -91,7 +91,7 @@ impl Default for AudioSettingsModel{
             output1_mute_button: Default::default(),
             out1_list_state: Default::default(),
             out2_list_state: Default::default(),
-            out2_dev_names: get_audio_device_names(),
+            out_dev_names: get_audio_device_names(),
             out2_dev_name: "".to_string(),
             out1_dev_name: "".to_string()
         }
@@ -148,9 +148,9 @@ impl AudioSettingsModel {
                     .push(
                         iced::widget::PickList::new(
                             &mut self.out1_list_state,
-                            &self.out2_dev_names,
+                            &self.out_dev_names,
                             Some(self.out1_dev_name.clone()),
-                            Message::AudioSettingsInDeviceSelected
+                            Message::AudioSettingsOutDev1Selected
                         )
                             .width(Length::from(pick_list_width as u16))
                     )
@@ -191,9 +191,9 @@ impl AudioSettingsModel {
                     .push(
                         iced::widget::PickList::new(
                             &mut self.out2_list_state,
-                            &self.out2_dev_names,
+                            &self.out_dev_names,
                             Some(self.out2_dev_name.clone()),
-                            Message::AudioSettingsOutDeviceSelected,
+                            Message::AudioSettingsOutDev2Selected,
                         )
                             .width(Length::from(pick_list_width as u16))
                     )
@@ -220,15 +220,15 @@ impl AudioSettingsModel {
                 AudioType::Output2 => settings.output2_muted = !settings.output2_muted,
             }
 
-            AudioSettingsMessage::InDevSelected(name) => {
-                self.out2_dev_names = get_audio_device_names();
+            AudioSettingsMessage::OutDev1Selected(name) => {
+                self.out_dev_names = get_audio_device_names();
                 self.out1_dev_name = name.clone();
-                settings.out2_dev_name = name;
+                settings.out1_dev_name = name;
             }
 
 
-            AudioSettingsMessage::OutDevSelected(name) => {
-                self.out2_dev_names = get_audio_device_names();
+            AudioSettingsMessage::OutDev2Selected(name) => {
+                self.out_dev_names = get_audio_device_names();
                 self.out2_dev_name = name.clone();
                 settings.out2_dev_name = name;
             }

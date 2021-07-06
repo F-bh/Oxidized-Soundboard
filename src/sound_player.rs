@@ -71,7 +71,6 @@ impl Sound {
             }
 
 
-
             let (_stream, out1_stream_handle) = OutputStream::try_from_device(&out_dev1).unwrap();
             let (_stream, out2_stream_handle) = OutputStream::try_from_device(&out_dev2).unwrap();
             let out1_file_buf = BufReader::new(File::open(path.clone()).unwrap());
@@ -89,7 +88,7 @@ impl Sound {
             let start_time = SystemTime::now();
 
             if !settings.lock().unwrap().output2_muted {
-                out2_sink.set_volume(settings.lock().unwrap().output1_slider_value as f32 / 100.0);
+                out2_sink.set_volume(settings.lock().unwrap().output2_slider_value as f32 / 100.0);
             } else {
                 out2_sink.set_volume(0.0);
             }
@@ -118,14 +117,14 @@ impl Sound {
 
                         PlayerMessage::SettingsChange => {
                             let settings = settings.lock().unwrap();
-                            if !settings.output2_muted {
-                                out1_sink.set_volume(settings.output2_slider_value as f32 / 100.0);
+                            if !settings.output1_muted {
+                                out1_sink.set_volume(settings.output1_slider_value as f32 / 100.0);
                             } else {
                                 out1_sink.set_volume(0.0);
                             }
 
-                            if !settings.output1_muted {
-                                out2_sink.set_volume(settings.output1_slider_value as f32 / 100.0);
+                            if !settings.output2_muted {
+                                out2_sink.set_volume(settings.output2_slider_value as f32 / 100.0);
                             } else {
                                 out2_sink.set_volume(0.0);
                             }

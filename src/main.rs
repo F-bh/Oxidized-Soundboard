@@ -56,8 +56,8 @@ pub(crate) enum Message {
     PlayButtons(ButtonMessage),
     AddView(AddViewMessage),
     WindowResized(usize, usize),
-    AudioSettingsOutDeviceSelected(String),//not an elegant solution
-    AudioSettingsInDeviceSelected(String), //not an elegant solution
+    AudioSettingsOutDev1Selected(String),//not an elegant solution
+    AudioSettingsOutDev2Selected(String), //not an elegant solution
 }
 
 #[derive(Serialize, Deserialize)]
@@ -84,9 +84,9 @@ fn save(settings: &SaveSettings){
 
 fn load_save() -> Option<SaveSettings>{
     #[cfg(target_os = "linux")]
-        let file_name = ".oxidized_soundboard";
+        let file_name = "/.oxidized_soundboard";
     #[cfg(target_os = "windows")]
-        let file_name = "oxidized_soundboard.yaml";
+        let file_name = "\\oxidized_soundboard.yaml";
 
     let yaml = std::fs::File::open(String::from(String::from(home_dir()?.to_str()?)) + file_name).ok()?;
     let reader = BufReader::new(yaml);
@@ -170,7 +170,7 @@ impl Application for Example {
                 settings.height = height;
             }
 
-            Message::AudioSettingsInDeviceSelected(name) => {
+            Message::AudioSettingsOutDev2Selected(name) => {
                 let mut player_update_channels: Vec<Sender<PlayerMessage>> = vec![];
 
                 for btn in &self.play_buttons.buttons {
@@ -178,10 +178,10 @@ impl Application for Example {
                         player_update_channels.push(tx);
                     }
                 }
-                AudioSettingsModel::update(&mut self.audio_model, AudioSettingsMessage::InDevSelected(name), player_update_channels);
+                AudioSettingsModel::update(&mut self.audio_model, AudioSettingsMessage::OutDev2Selected(name), player_update_channels);
             }
 
-            Message::AudioSettingsOutDeviceSelected(name) => {
+            Message::AudioSettingsOutDev1Selected(name) => {
                 let mut player_update_channels: Vec<Sender<PlayerMessage>> = vec![];
 
                 for btn in &self.play_buttons.buttons {
@@ -189,7 +189,7 @@ impl Application for Example {
                         player_update_channels.push(tx);
                     }
                 }
-                AudioSettingsModel::update(&mut self.audio_model, AudioSettingsMessage::OutDevSelected(name), player_update_channels);
+                AudioSettingsModel::update(&mut self.audio_model, AudioSettingsMessage::OutDev1Selected(name), player_update_channels);
             }
 
             Message::Save => {
