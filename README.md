@@ -11,5 +11,7 @@ How to:
     - either drag and drop them in and enter a name
     - or press add and enter the path by hand
   - play sounds as audio input:
-    - install VB-cables or any other equivalent software and use it's virtual input as output  
+    - install VB-cables or any other equivalent software and use it's virtual input as output
+  - build :
+    - just the usual cargo build --release 
 
