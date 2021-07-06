@@ -75,12 +75,11 @@ impl PlayButtons {
                 //check for messages from players
                 if let Some(tx) = &btn.player_handle_receiver {
                     let res = tx.try_recv();
-                    match res {
-                        Ok(msg) => match msg {
+                    if let Ok(msg) = res {
+                        match msg {
                             PlayState::Stopped => btn.sound.state = PlayState::Stopped,
                             PlayState::Playing => btn.sound.state = PlayState::Playing,
-                        },
-                        Err(_) => { /*TODO add error handling*/ }
+                        }
                     }
                 }
 

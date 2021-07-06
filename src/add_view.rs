@@ -33,7 +33,20 @@ pub(crate) enum AddViewMessage {
     AddPressed,
 }
 
+
+fn check_filetype(path: &str) -> bool{
+     if Path::exists(Path::new(path)){
+         if let Some(ending) = path.split(".").last() {
+             if ["mp3","wav","ogg","flac"].contains(&ending){
+                 return true
+             }
+         }
+     }
+     return false
+}
+
 impl AddView {
+
     pub fn update(&mut self, msg: AddViewMessage) -> Option<ButtonMessage> {
         let mut ret_val = None;
         match msg {
@@ -73,7 +86,7 @@ impl AddView {
             AddViewMessage::FileDropped(path_buf) => {
                 if let Some(str) = path_buf.to_str(){
                     self.temp_path = String::from(str);
-                    self.allow_confirm = true;
+                    self.allow_confirm = check_filetype(str);
                     self.is_being_added = true;
                 }
             }
@@ -87,7 +100,6 @@ impl AddView {
 
         if self.is_being_added && width != 0 && height != 0 {
             if self.is_being_added {
-                //TODO add winapi filepicker for Windows users
                 let add_button = if self.allow_confirm {
                     Button::new(&mut self.add_confirm_button, Text::new("confirm")).on_press(
                         Message::AddView(AddViewMessage::ButtonAdded(
@@ -97,7 +109,7 @@ impl AddView {
                         )),
                     )
                 } else {
-                    Button::new(&mut self.add_confirm_button, Text::new("confirm"))
+                    Button::new(&mut self.add_confirm_button, Text::new("please enter the path to a supported sound file"))
                 };
 
                 Column::new()
@@ -107,8 +119,7 @@ impl AddView {
                             "enter the filepath here",
                             &self.temp_path,
                             |val| {
-                                if Path::exists(Path::new(val.as_str())) {
-                                    //TODO: add FileType check
+                                if check_filetype(&val){
                                     Message::AddView(AddViewMessage::PathOk(val))
                                 } else {
                                     Message::AddView(AddViewMessage::PathNotOk(val))

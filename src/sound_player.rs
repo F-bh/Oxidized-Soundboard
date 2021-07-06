@@ -38,8 +38,6 @@ impl Sound {
 
     // plays the sound file associated with the Sound using the default audio output
     // returns a channel Sender to send messages to the player and a receiver to receive messages from the player
-    // TODO let user specify output
-    // TODO remove unwraps
     pub(crate) fn play( &self, settings: Arc<Mutex<AudioSettings>>) -> (Sender<PlayerMessage>, Receiver<PlayState>) {
         let (tx_player_as_receiver, rx_player_as_receiver) = mpsc::channel();
         let (tx_player_as_sender, rx_player_as_sender) = mpsc::channel();

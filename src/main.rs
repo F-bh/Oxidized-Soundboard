@@ -134,11 +134,9 @@ impl Application for Example {
                     iced_native::window::Event::Resized { width, height } => {
                         Some(Message::WindowResized(width as usize, height as usize))
                     }
-                    //Event::FileHovered(_) => {}
                     iced_native::window::Event::FileDropped(path_buf) => {
                         Some(Message::AddView(AddViewMessage::FileDropped(path_buf)))
                     }
-                    //Event::FilesHoveredLeft => {}
                     _ => None,
                 }
             }
