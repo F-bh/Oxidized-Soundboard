@@ -19,6 +19,7 @@ use std::io::{Write, BufReader};
 use std::ops::Deref;
 
 use std::collections::HashMap;
+use home::home_dir;
 
 fn main() -> iced::Result {
     if cfg!(target_os = "windows"){
@@ -66,15 +67,28 @@ struct SaveSettings{
 }
 
 fn save(settings: &SaveSettings){
-   if let Ok(mut file) = std::fs::File::create("soundboard.yaml"){
-       if let Ok (yaml) = serde_yaml::to_string(settings){
-           file.write(yaml.as_bytes());
-       }
-   }
+    #[cfg(target_os = "linux")]
+        let file_name = "/.oxidized_soundboard";
+    #[cfg(target_os = "windows")]
+        let file_name = "\\oxidized_soundboard.yaml";
+    if let Some(dir) = home_dir() {
+        if let Some(dir) = dir.to_str() {
+            if let Ok(mut file) = std::fs::File::create(String::from(dir) + file_name) {
+                if let Ok(yaml) = serde_yaml::to_string(settings) {
+                    file.write(yaml.as_bytes());
+                }
+            }
+        }
+    }
 }
 
 fn load_save() -> Option<SaveSettings>{
-    let yaml = std::fs::File::open("soundboard.yaml").ok()?;
+    #[cfg(target_os = "linux")]
+        let file_name = ".oxidized_soundboard";
+    #[cfg(target_os = "windows")]
+        let file_name = "oxidized_soundboard.yaml";
+
+    let yaml = std::fs::File::open(String::from(String::from(home_dir()?.to_str()?)) + file_name).ok()?;
     let reader = BufReader::new(yaml);
     let mut settings: SaveSettings = serde_yaml::from_reader(reader).ok()?;
     let mut temp: HashMap<String, String> = HashMap::new();
