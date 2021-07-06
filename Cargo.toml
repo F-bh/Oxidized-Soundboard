@@ -1,6 +1,6 @@
 [package]
 name = "Oxidized-Soundboard"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["F-bh <72809273+F-bh@users.noreply.github.com>"]
 edition = "2018"
 
