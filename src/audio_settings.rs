@@ -2,14 +2,16 @@ use crate::sound_player::PlayerMessage;
 use crate::{Message, WindowSettings};
 use iced::{
     button, slider, Align, Button, Column, Element, HorizontalAlignment, Length, Row, Text,
-    pick_list, PickList,
+    pick_list,
 };
 use std::ops::RangeInclusive;
 use std::thread;
 use std::sync::mpsc::Sender;
-use std::sync::{Arc, Mutex, PoisonError, MutexGuard};
-use rodio::{Device, DeviceTrait};
+use std::sync::{Arc, Mutex};
+use rodio::{DeviceTrait};
 use rodio::cpal::traits::HostTrait;
+use serde::{Serialize, Deserialize};
+
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub(crate) enum AudioType {
@@ -25,7 +27,7 @@ pub(crate) enum AudioSettingsMessage {
     OutDevSelected(String),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct AudioSettings {
     pub(crate) output2_slider_value: i32,
     pub(crate) output2_muted: bool,
@@ -208,12 +210,12 @@ impl AudioSettingsModel {
 
         //change settings
         match msg {
-            AudioSettingsMessage::SliderChange(val, Type) => match Type {
+            AudioSettingsMessage::SliderChange(val, audio_type) => match audio_type {
                 AudioType::Output1 => settings.output1_slider_value = val,
                 AudioType::Output2 => settings.output2_slider_value = val,
             }
 
-            AudioSettingsMessage::MutePressed(Type) => match Type {
+            AudioSettingsMessage::MutePressed(audio_type) => match audio_type {
                 AudioType::Output1 => settings.output1_muted = !settings.output1_muted,
                 AudioType::Output2 => settings.output2_muted = !settings.output2_muted,
             }

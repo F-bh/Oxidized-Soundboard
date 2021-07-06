@@ -5,8 +5,7 @@ use crate::Message;
 use crate::{sound_player, WindowSettings};
 
 use iced::{
-    button, text_input, Align, Button, Column, Element, HorizontalAlignment, Length, Row, Text,
-    TextInput, VerticalAlignment,
+    button, Button, Column, Element, HorizontalAlignment, Length, Row, Text,VerticalAlignment,
 };
 use std::fmt::{Debug};
 
@@ -17,10 +16,10 @@ use std::sync::{Arc, Mutex};
 pub(crate) struct PlayButton {
     pub(crate) player_handle_sender: Option<Sender<sound_player::PlayerMessage>>,
     pub(crate) player_handle_receiver: Option<Receiver<sound_player::PlayState>>,
-    play_state: button::State,
-    delete_state: button::State,
-    sound: sound_player::Sound,
-    name: String,
+    pub(crate) play_state: button::State,
+    pub(crate) delete_state: button::State,
+    pub(crate) sound: sound_player::Sound,
+    pub(crate)name: String,
 }
 
 impl PlayButton {
@@ -39,7 +38,6 @@ impl PlayButton {
 #[derive(Debug, Clone)]
 pub(crate) enum ButtonMessage {
     PlayButtonPressed(usize),
-    AddButtonPressed,
     DeleteButtonPressed(usize),
     ButtonAdded(Sound, String), //sound and name
 }
@@ -49,6 +47,7 @@ pub(crate) struct PlayButtons {
     pub(crate) audio_settings: Arc<Mutex<AudioSettings>>,
     pub(crate) video_settings: Arc<Mutex<WindowSettings>>,
     add_button: button::State,
+    save_button: button::State,
     button_row_len: usize,
     is_being_added: bool,
 }
@@ -60,6 +59,7 @@ impl Default for PlayButtons {
             audio_settings: Default::default(),
             video_settings: Default::default(),
             add_button: Default::default(),
+            save_button: Default::default(),
             button_row_len: 5,
             is_being_added: false,
         }
@@ -96,10 +96,6 @@ impl PlayButtons {
                         btn.player_handle_receiver = Option::Some(rx);
                     }
                 }
-            }
-
-            ButtonMessage::AddButtonPressed => {
-                self.is_being_added = true;
             }
 
             ButtonMessage::DeleteButtonPressed(index) => {
@@ -187,6 +183,21 @@ impl PlayButtons {
                     .into(),
                 );
             }
+
+            //add save button
+            row_children.push(
+                Button::new(
+                    &mut self.save_button,
+                    Text::new("save")
+                        .horizontal_alignment(HorizontalAlignment::Center)
+                        .vertical_alignment(VerticalAlignment::Center),
+                )
+                    //.on_press(Message::PlayButtons(ButtonMessage::AddButtonPressed))
+                    .on_press(Message::Save)
+                    .width(Length::from(button_width as u16))
+                    .height(Length::from(button_height as u16))
+                    .into(),
+            );
 
             //calculate amount of rows to draw
             let row_amount = if row_children.len() < self.button_row_len && row_children.len() > 0 {

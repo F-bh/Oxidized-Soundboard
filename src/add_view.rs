@@ -34,7 +34,7 @@ pub(crate) enum AddViewMessage {
 }
 
 
-fn check_filetype(path: &str) -> bool{
+pub(crate) fn check_filetype(path: &str) -> bool{
      if Path::exists(Path::new(path)){
          if let Some(ending) = path.split(".").last() {
              if ["mp3","wav","ogg","flac"].contains(&ending){

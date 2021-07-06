@@ -1,13 +1,13 @@
 use crate::audio_settings::AudioSettings;
-use rodio::{Decoder, OutputStream, Sink, Source, DeviceTrait, Device};
+use rodio::{Decoder, OutputStream, Sink, Source, DeviceTrait};
 use std::fs::File;
 use std::io::BufReader;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime};
-use crate::audio_settings::AudioType::Output1;
-use std::borrow::Borrow;
+
+
 use rodio::cpal::traits::HostTrait;
 
 #[derive(Debug, Clone)]

@@ -5,15 +5,20 @@ mod sound_player;
 
 use crate::add_view::{AddView, AddViewMessage};
 use crate::audio_settings::{AudioSettings, AudioSettingsMessage, AudioSettingsModel};
-use crate::play_buttons::{ButtonMessage, PlayButtons};
-use crate::sound_player::{PlayerMessage};
+use crate::play_buttons::{ButtonMessage, PlayButtons, PlayButton};
+use crate::sound_player::{PlayerMessage, Sound, PlayState};
 use iced::{
-    executor, scrollable, Align, Application, Clipboard, Column, Command, Element, Executor,
-    Sandbox, Scrollable, Settings,
+    executor, scrollable, Align, Application, Clipboard, Column, Command, Element,
+    Scrollable, Settings,
 };
 use iced_native::{Event, Subscription};
 use std::sync::mpsc::{Sender};
 use std::sync::{Arc, Mutex};
+use serde::{Serialize, Deserialize};
+use std::io::{Write, BufReader};
+use std::ops::Deref;
+
+use std::collections::HashMap;
 
 fn main() -> iced::Result {
     if cfg!(target_os = "windows"){
@@ -45,6 +50,7 @@ pub(crate) struct Example {
 
 #[derive(Debug, Clone)]
 pub(crate) enum Message {
+    Save,
     AudioSettings(AudioSettingsMessage),
     PlayButtons(ButtonMessage),
     AddView(AddViewMessage),
@@ -53,6 +59,36 @@ pub(crate) enum Message {
     AudioSettingsInDeviceSelected(String), //not an elegant solution
 }
 
+#[derive(Serialize, Deserialize)]
+struct SaveSettings{
+    audio: AudioSettings,
+    sound_paths: HashMap<String,String>,
+}
+
+fn save(settings: &SaveSettings){
+   if let Ok(mut file) = std::fs::File::create("soundboard.yaml"){
+       if let Ok (yaml) = serde_yaml::to_string(settings){
+           file.write(yaml.as_bytes());
+       }
+   }
+}
+
+fn load_save() -> Option<SaveSettings>{
+    let yaml = std::fs::File::open("soundboard.yaml").ok()?;
+    let reader = BufReader::new(yaml);
+    let mut settings: SaveSettings = serde_yaml::from_reader(reader).ok()?;
+    let mut temp: HashMap<String, String> = HashMap::new();
+    for (k,v) in settings.sound_paths.iter().filter(
+        |path|
+            crate::add_view::check_filetype(path.1)
+    ){
+          temp.insert(k.clone(),v.clone());
+    }
+    settings.sound_paths = temp;
+    Some(settings)
+}
+
+
 impl Application for Example {
     type Executor = executor::Default;
     type Message = Message;
@@ -60,6 +96,24 @@ impl Application for Example {
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
         let mut app = Example::default();
+        //load settings
+        if let Some(settings) = load_save(){
+            app.audio_model.audio_settings = Arc::new(Mutex::new(settings.audio));
+            for (name, path) in settings.sound_paths.iter(){
+                app.play_buttons.buttons.push(PlayButton{
+                    player_handle_sender: None,
+                    player_handle_receiver: None,
+                    play_state: Default::default(),
+                    delete_state: Default::default(),
+                    sound: Sound {
+                        file_path: path.clone(),
+                        state: PlayState::Stopped
+                    },
+                    name: name.clone()
+                })
+            }
+        }
+
         //enable memory sharing between components
         app.audio_settings = app.audio_model.audio_settings.clone();
         app.play_buttons.audio_settings = app.audio_settings.clone();
@@ -123,7 +177,21 @@ impl Application for Example {
                 }
                 AudioSettingsModel::update(&mut self.audio_model, AudioSettingsMessage::OutDevSelected(name), player_update_channels);
             }
+
+            Message::Save => {
+                //save current settings and buttons
+                let mut sound_paths: HashMap<String, String> = Default::default();
+                for btn in  self.play_buttons.buttons.iter(){
+                sound_paths.insert(btn.name.clone(),btn.sound.file_path.clone());
+                }
+                let audio = self.audio_settings.clone().lock().unwrap().deref().clone();
+                save(&SaveSettings{
+                audio ,
+                sound_paths,
+                });
+            }
         }
+
         Command::none()
     }
 
