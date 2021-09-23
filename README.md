@@ -1,5 +1,6 @@
 # Oxidized-Soundboard
 simple soundboard written in Rust
+
 This is my first projekt written in Rust, I most likely won't maintain it, unless I find an issue or bug that annoys me.
 If you want to add to it you are free to fork it or use it as a starting off point.
 
